@@ -161,6 +161,7 @@ EXPECTED_MANDATORY_GAMES = frozenset([
     "tiny_bridge_4p",
     "tiny_hanabi",
     "trade_comm",
+    "turn_battle",
     "turn_based_simultaneous_game",
     "twixt",
     "ultimate_tic_tac_toe",

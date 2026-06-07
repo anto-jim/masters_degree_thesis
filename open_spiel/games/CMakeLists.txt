@@ -224,6 +224,8 @@ set(GAME_SOURCES
   tiny_hanabi/tiny_hanabi.h
   trade_comm/trade_comm.cc
   trade_comm/trade_comm.h
+  turn_battle/turn_battle.cc
+  turn_battle/turn_battle.h
   twenty_forty_eight/2048.cc
   twenty_forty_eight/2048.h
   twixt/twixt.cc
@@ -745,6 +747,10 @@ add_test(twixt_test twixt_test)
 add_executable(ultimate_tic_tac_toe_test ultimate_tic_tac_toe/ultimate_tic_tac_toe_test.cc
                ${OPEN_SPIEL_OBJECTS} $<TARGET_OBJECTS:tests>)
 add_test(ultimate_tic_tac_toe_test ultimate_tic_tac_toe_test)
+
+add_executable(turn_battle_test turn_battle/turn_battle_test.cc ${OPEN_SPIEL_OBJECTS}
+               $<TARGET_OBJECTS:tests>)
+add_test(turn_battle_test turn_battle_test)
 
 if (${OPEN_SPIEL_BUILD_WITH_ACPC})
   add_executable(universal_poker_test universal_poker/universal_poker_test.cc ${OPEN_SPIEL_OBJECTS}
