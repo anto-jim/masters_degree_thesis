@@ -134,7 +134,8 @@ class PolicyGradient(rl_agent.AbstractAgent):
                num_critic_before_pi=8,
                additional_discount_factor=1.0,
                max_global_gradient_norm=None,
-               optimizer_str="sgd"):
+               optimizer_str="sgd",
+               device="cpu"):
     """Initialize the PolicyGradient agent.
 
     Args:
@@ -165,9 +166,11 @@ class PolicyGradient(rl_agent.AbstractAgent):
         to which the gradient is shrunk if its value is larger.
       optimizer_str: String defining which optimizer to use. Supported values
         are {sgd, adam}
+      device: PyTorch device string (e.g. "cpu", "cuda", "cuda:0").
     """
     assert bool(loss_str) ^ bool(loss_class), "Please provide only one option."
     self._kwargs = locals()
+    self._device = torch.device(device)
     loss_class = loss_class if loss_class else self._get_loss_class(loss_str)
     self._loss_class = loss_class
 
@@ -234,6 +237,13 @@ class PolicyGradient(rl_agent.AbstractAgent):
       self._pi_optimizer = optim.SGD(
           self._pi_network.parameters(), lr=pi_learning_rate)
 
+    self._net_torso.to(self._device)
+    self._policy_logits_layer.to(self._device)
+    if loss_class.__name__ == "BatchA2CLoss":
+      self._baseline_layer.to(self._device)
+    else:
+      self._q_values_layer.to(self._device)
+
     self._loss_str = loss_str
 
   def _get_loss_class(self, loss_str):
@@ -258,10 +268,11 @@ class PolicyGradient(rl_agent.AbstractAgent):
 
   def _act(self, info_state, legal_actions):
     # Make a singleton batch for NN compatibility: [1, info_state_size]
-    info_state = torch.Tensor(np.reshape(info_state, [1, -1]))
+    info_state = torch.tensor(
+        np.reshape(info_state, [1, -1]), device=self._device, dtype=torch.float32)
     torso_out = self._net_torso(info_state)
     self._policy_logits = self._policy_logits_layer(torso_out)
-    policy_probs = F.softmax(self._policy_logits, dim=1).detach()
+    policy_probs = F.softmax(self._policy_logits, dim=1).detach().cpu().numpy()
 
     # Remove illegal actions, re-normalize probs
     probs = np.zeros(self._num_actions)
@@ -349,7 +360,8 @@ class PolicyGradient(rl_agent.AbstractAgent):
     for name, model in self._savers:
       full_checkpoint_dir = self._full_checkpoint_name(checkpoint_dir, name)
       logging.info("Restoring checkpoint: %s", full_checkpoint_dir)
-      model.load_state_dict(torch.load(full_checkpoint_dir))
+      model.load_state_dict(
+          torch.load(full_checkpoint_dir, map_location=self._device))
 
   @property
   def loss(self):
@@ -405,9 +417,12 @@ class PolicyGradient(rl_agent.AbstractAgent):
       The average Critic loss obtained on this batch.
     """
     # TODO(author3): illegal action handling.
-    info_state = torch.Tensor(self._dataset["info_states"])
-    action = torch.LongTensor(self._dataset["actions"])
-    return_ = torch.Tensor(self._dataset["returns"])
+    info_state = torch.tensor(
+        self._dataset["info_states"], device=self._device, dtype=torch.float32)
+    action = torch.tensor(
+        self._dataset["actions"], device=self._device, dtype=torch.long)
+    return_ = torch.tensor(
+        self._dataset["returns"], device=self._device, dtype=torch.float32)
     torso_out = self._net_torso(info_state)
 
     # Critic loss
@@ -420,8 +435,10 @@ class PolicyGradient(rl_agent.AbstractAgent):
     else:
       # Q-loss otherwise.
       q_values = self._q_values_layer(torso_out)
-      action_indices = torch.stack(
-          [torch.arange(q_values.shape[0], dtype=torch.long), action], dim=0)
+      action_indices = torch.stack([
+          torch.arange(q_values.shape[0], dtype=torch.long, device=self._device),
+          action,
+      ], dim=0)
       value_predictions = q_values[list(action_indices)]
       critic_loss = torch.mean(F.mse_loss(value_predictions, return_))
       self.minimize_with_clipping(self._q_values_layer, self._critic_optimizer,
@@ -436,9 +453,12 @@ class PolicyGradient(rl_agent.AbstractAgent):
       The average Pi loss obtained on this batch.
     """
     # TODO(author3): illegal action handling.
-    info_state = torch.Tensor(self._dataset["info_states"])
-    action = torch.LongTensor(self._dataset["actions"])
-    return_ = torch.Tensor(self._dataset["returns"])
+    info_state = torch.tensor(
+        self._dataset["info_states"], device=self._device, dtype=torch.float32)
+    action = torch.tensor(
+        self._dataset["actions"], device=self._device, dtype=torch.long)
+    return_ = torch.tensor(
+        self._dataset["returns"], device=self._device, dtype=torch.float32)
     torso_out = self._net_torso(info_state)
     self._policy_logits = self._policy_logits_layer(torso_out)
 
@@ -495,17 +515,25 @@ class PolicyGradient(rl_agent.AbstractAgent):
     if copy_weights:
       with torch.no_grad():
         for layer in net_torso.model:
-          layer.weight *= (1 + sigma * torch.randn(layer.weight.shape))
+          layer.weight *= (
+              1 + sigma * torch.randn(
+                  layer.weight.shape, device=layer.weight.device))
 
         policy_logits_layer.weight *= (
-            1 + sigma * torch.randn(policy_logits_layer.weight.shape))
+            1 + sigma * torch.randn(
+                policy_logits_layer.weight.shape,
+                device=policy_logits_layer.weight.device))
 
         if hasattr(copied_object, "_q_values_layer"):
           q_values_layer.weight *= (
-              1 + sigma * torch.randn(q_values_layer.weight.shape))
+              1 + sigma * torch.randn(
+                  q_values_layer.weight.shape,
+                  device=q_values_layer.weight.device))
 
         if hasattr(copied_object, "_baseline_layer"):
           baseline_layer.weight *= (
-              1 + sigma * torch.randn(baseline_layer.weight.shape))
+              1 + sigma * torch.randn(
+                  baseline_layer.weight.shape,
+                  device=baseline_layer.weight.device))
 
     return copied_object

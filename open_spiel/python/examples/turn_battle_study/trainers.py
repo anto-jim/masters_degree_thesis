@@ -24,11 +24,14 @@ from open_spiel.python.examples.turn_battle_study.bots import (
     bots_to_adapters,
 )
 from open_spiel.python.examples.turn_battle_study.config import normalize_algorithm
+from open_spiel.python.examples.turn_battle_study.device import device_label, resolve_device
 from open_spiel.python.examples.turn_battle_study.evaluation import (
     evaluate_team_matchup,
     play_episode_rl,
+    play_training_episode_rl,
 )
 from open_spiel.python.examples.turn_battle_study.game import (
+    load_game,
     load_turn_based_game,
     make_rl_environment,
     parse_game_params,
@@ -41,7 +44,7 @@ FLAGS = flags.FLAGS
 
 def _dcfr_turns() -> int:
   params = parse_game_params(FLAGS.game_params)
-  return min(int(params.get("num_turns", 15)), FLAGS.dcfr_max_turns)
+  return min(int(params.get("num_turns", 5)), FLAGS.dcfr_max_turns)
 
 
 def _bidirectional_win_rate(
@@ -64,10 +67,14 @@ def _log_checkpoint(
   print(f"[train {label}] step {step}: win={win:.3f}")
 
 
+def _training_device() -> str:
+  return str(resolve_device(FLAGS.device))
+
+
 def train_alphazero(episodes, eval_every, eval_eps, rng):
-  print("  backend: PyTorch AlphaZero (net-guided OpenSpiel MCTS)")
+  print(f"  backend: PyTorch AlphaZero on {device_label(resolve_device(FLAGS.device))}")
   game = load_turn_based_game()
-  trainer = AlphaZeroTorch(game, rng)
+  trainer = AlphaZeroTorch(game, rng, device=FLAGS.device)
   log = TrainingLog(algorithm="alphazero")
   for it in range(1, episodes + 1):
     trainer.train_iteration()
@@ -78,9 +85,12 @@ def train_alphazero(episodes, eval_every, eval_eps, rng):
   return bots_to_adapters(trainer.make_bots()), log
 
 
+def _deep_cfr_bots(solver, game, rng):
+  return [DeepCFRPolicyBot(p, rng, solver) for p in range(game.num_players())]
+
+
 def train_deep_cfr(episodes, eval_every, eval_eps, rng):
-  print("  backend: PyTorch DeepCFRSolver (open_spiel/python/pytorch/deep_cfr.py)")
-  del eval_every
+  print(f"  backend: PyTorch DeepCFRSolver on {device_label(resolve_device(FLAGS.device))}")
   game = load_turn_based_game(num_turns=_dcfr_turns())
   solver = deep_cfr.DeepCFRSolver(
       game,
@@ -93,24 +103,43 @@ def train_deep_cfr(episodes, eval_every, eval_eps, rng):
       batch_size_strategy=FLAGS.dcfr_batch_size,
       policy_network_train_steps=FLAGS.dcfr_policy_steps,
       advantage_network_train_steps=FLAGS.dcfr_advantage_steps,
+      device=_training_device(),
+      seed=FLAGS.seed,
   )
-  solver.solve()
-  bots = [DeepCFRPolicyBot(p, rng, solver) for p in range(game.num_players())]
-  agents = bots_to_adapters(bots)
   log = TrainingLog(algorithm="deep_cfr")
-  win, loss = _bidirectional_win_rate("deep_cfr", agents, eval_eps, rng)
-  _log_checkpoint(log, episodes, win, loss, "deep_cfr")
+
+  for it in range(1, episodes + 1):
+    for player in range(solver._num_players):
+      for _ in range(FLAGS.dcfr_traversals):
+        solver._traverse_game_tree(solver._root_node, player)
+      if solver._reinitialize_advantage_networks:
+        solver._reinitialize_advantage_network(player)
+      solver._learn_advantage_network(player)
+    solver._iteration += 1
+    if it % eval_every == 0:
+      agents = bots_to_adapters(_deep_cfr_bots(solver, game, rng))
+      win, loss = _bidirectional_win_rate("deep_cfr", agents, eval_eps, rng)
+      _log_checkpoint(log, it, win, loss, "deep_cfr")
+
+  solver._learn_strategy_network()
+  agents = bots_to_adapters(_deep_cfr_bots(solver, game, rng))
+  if not log.episodes or log.episodes[-1] != episodes:
+    win, loss = _bidirectional_win_rate("deep_cfr", agents, eval_eps, rng)
+    _log_checkpoint(log, episodes, win, loss, "deep_cfr")
   return agents, log
 
 
 def _train_rl(algo, episodes, eval_every, eval_eps, rng):
   key = normalize_algorithm(algo)
-  print(f"  backend: PyTorch {key} (open_spiel/python/pytorch)")
+  print(
+      f"  backend: PyTorch {key} on {device_label(resolve_device(FLAGS.device))} "
+      f"(bot_mix={FLAGS.train_bot_mix:.0%}, opponent={FLAGS.train_bot_opponent})")
   env = make_rl_environment()
+  game = load_game()
   agents = create_rl_agents(algo, env)
   log = TrainingLog(algorithm=key)
   for ep in range(episodes):
-    play_episode_rl(env, agents, is_evaluation=False)
+    play_training_episode_rl(env, agents, rng, ep, game)
     if ep > 0 and ep % eval_every == 0:
       win, loss = _bidirectional_win_rate(key, agents, eval_eps, rng)
       _log_checkpoint(log, ep, win, loss, key)
@@ -137,15 +166,12 @@ def train_algorithm(algo, episodes, eval_every, eval_eps, rng):
     return train_qpg(episodes, eval_every, eval_eps, rng)
 
   env = make_rl_environment()
+  game = load_game()
   agents = create_rl_agents(algo, env)
   log = TrainingLog(algorithm=key)
   for ep in range(episodes):
-    play_episode_rl(env, agents, is_evaluation=False)
+    play_training_episode_rl(env, agents, rng, ep, game)
     if ep > 0 and ep % eval_every == 0:
-      stats = evaluate_team_matchup(
-          algo, "random", eval_eps, rng, team1_agents=agents).summary()
-      log.episodes.append(ep)
-      log.team1_win_rate.append(stats["team1_win_rate"])
-      log.team2_win_rate.append(stats["team2_win_rate"])
-      print(f"[train {key}] ep {ep}: win={stats['team1_win_rate']:.3f}")
+      win, loss = _bidirectional_win_rate(key, agents, eval_eps, rng)
+      _log_checkpoint(log, ep, win, loss, key)
   return agents, log

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import contextlib
-from typing import Optional, Sequence
+from typing import List, Optional, Sequence
+
+from absl import flags
+import numpy as np
 
 from open_spiel.python.algorithms import evaluate_bots
 from open_spiel.python.examples.turn_battle_study.bots import (
@@ -14,11 +17,14 @@ from open_spiel.python.examples.turn_battle_study.bots import (
 )
 from open_spiel.python.examples.turn_battle_study.config import (
     TEAM1_PLAYERS,
+    TEAM2_PLAYERS,
     TRAINABLE_ALGOS,
     TURN_BASED_TRAINED_ALGOS,
     effective_bot_algorithm,
     normalize_algorithm,
 )
+
+FLAGS = flags.FLAGS
 from open_spiel.python.examples.turn_battle_study.game import (
     load_game,
     load_turn_based_game,
@@ -52,6 +58,39 @@ def _uses_turn_based_eval(
   if _uses_rl_stack(t1, team1_agents) or _uses_rl_stack(t2, team2_agents):
     return True
   return False
+
+
+def _pick_bot_opponent(rng: np.random.RandomState) -> str:
+  choice = FLAGS.train_bot_opponent
+  if choice == "mixed":
+    return rng.choice(["random", "heuristic"])
+  return choice
+
+
+def play_training_episode_rl(
+    env,
+    learning_agents: Sequence,
+    rng: np.random.RandomState,
+    episode_idx: int,
+    game,
+) -> List[float]:
+  """Self-play, or learning team vs bots with alternating team slots."""
+  if rng.random() >= FLAGS.train_bot_mix:
+    return play_episode_rl(env, learning_agents, is_evaluation=False)
+
+  bot_algo = _pick_bot_opponent(rng)
+  learning_on_team1 = (episode_idx % 2 == 0)
+  episode_agents: List[object] = []
+  for player in range(env.num_players):
+    learns_here = (
+        (learning_on_team1 and player in TEAM1_PLAYERS)
+        or (not learning_on_team1 and player in TEAM2_PLAYERS))
+    if learns_here:
+      episode_agents.append(learning_agents[player])
+    else:
+      episode_agents.append(BotRlAdapter(
+          create_pyspiel_bot(bot_algo, game, player, rng), player))
+  return play_episode_rl(env, episode_agents, is_evaluation=False)
 
 
 def play_episode_rl(env, agents, is_evaluation=True):

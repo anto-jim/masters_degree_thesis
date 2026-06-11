@@ -16,6 +16,7 @@ import torch
 from torch import nn
 
 from open_spiel.python.algorithms import mcts
+from open_spiel.python.examples.turn_battle_study.device import resolve_device
 import pyspiel
 
 FLAGS = flags.FLAGS
@@ -42,16 +43,23 @@ class AlphaZeroNet(nn.Module):
 class TorchAZEvaluator(mcts.Evaluator):
   """MCTS evaluator backed by the AlphaZero network."""
 
-  def __init__(self, net: AlphaZeroNet, value_scale: float):
+  def __init__(self, net: AlphaZeroNet, value_scale: float,
+               device: torch.device):
     self._net = net
     self._value_scale = value_scale
+    self._device = device
 
   def _infer(self, state):
     player = state.current_player()
     obs = np.asarray(state.information_state_tensor(player), dtype=np.float32)
     with torch.no_grad():
-      logits, value = self._net(torch.from_numpy(obs).unsqueeze(0))
-    return player, logits.squeeze(0).numpy(), value.squeeze(0).numpy()
+      logits, value = self._net(
+          torch.from_numpy(obs).unsqueeze(0).to(self._device))
+    return (
+        player,
+        logits.squeeze(0).cpu().numpy(),
+        value.squeeze(0).cpu().numpy(),
+    )
 
   def evaluate(self, state):
     _, _, value = self._infer(state)
@@ -74,9 +82,11 @@ class TorchAZEvaluator(mcts.Evaluator):
 class AlphaZeroTorch:
   """Self-play AlphaZero trainer using OpenSpiel MCTS for search."""
 
-  def __init__(self, game: pyspiel.Game, rng: np.random.RandomState):
+  def __init__(self, game: pyspiel.Game, rng: np.random.RandomState,
+               device: str = "auto"):
     self._game = game
     self._rng = rng
+    self._device = resolve_device(device)
     self._num_players = game.num_players()
     self._num_actions = game.num_distinct_actions()
     self._value_scale = max(abs(game.max_utility()), abs(game.min_utility()), 1.0)
@@ -87,10 +97,11 @@ class AlphaZeroTorch:
     self._input_size = len(dummy.information_state_tensor(dummy.current_player()))
 
     self._net = AlphaZeroNet(
-        self._input_size, self._num_actions, self._num_players)
+        self._input_size, self._num_actions, self._num_players).to(self._device)
     self._optimizer = torch.optim.Adam(
         self._net.parameters(), lr=FLAGS.az_learning_rate)
-    self._evaluator = TorchAZEvaluator(self._net, self._value_scale)
+    self._evaluator = TorchAZEvaluator(
+        self._net, self._value_scale, self._device)
     self._buffer: List[Tuple[np.ndarray, np.ndarray, np.ndarray]] = []
 
   def _new_bot(self) -> mcts.MCTSBot:
@@ -139,9 +150,12 @@ class AlphaZeroTorch:
       return 0.0
     idx = self._rng.choice(
         len(self._buffer), FLAGS.az_batch_size, replace=False)
-    obs = torch.from_numpy(np.stack([self._buffer[i][0] for i in idx]))
-    target_pi = torch.from_numpy(np.stack([self._buffer[i][1] for i in idx]))
-    target_v = torch.from_numpy(np.stack([self._buffer[i][2] for i in idx]))
+    obs = torch.from_numpy(
+        np.stack([self._buffer[i][0] for i in idx])).to(self._device)
+    target_pi = torch.from_numpy(
+        np.stack([self._buffer[i][1] for i in idx])).to(self._device)
+    target_v = torch.from_numpy(
+        np.stack([self._buffer[i][2] for i in idx])).to(self._device)
 
     logits, value = self._net(obs)
     log_probs = torch.log_softmax(logits, dim=1)

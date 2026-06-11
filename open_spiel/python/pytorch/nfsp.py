@@ -246,11 +246,11 @@ class NFSP(rl_agent.AbstractAgent):
 
   def _act(self, info_state: np.ndarray, legal_actions: np.ndarray):
     action_values = self._avg_network(
-        torch.FloatTensor(info_state, device=self._device).unsqueeze(0)
+        torch.tensor(info_state, device=self._device, dtype=torch.float32).unsqueeze(0)
     ).squeeze(0)
     # Remove illegal actions, normalize probs
     probs = torch.where(
-        torch.BoolTensor(legal_actions, device=self._device),
+        torch.tensor(legal_actions, device=self._device, dtype=torch.bool),
         action_values,
         torch.full_like(action_values, dqn.ILLEGAL_ACTION_LOGITS_PENALTY),
     )

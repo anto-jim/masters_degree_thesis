@@ -495,8 +495,10 @@ class DeepCFRSolver(policy.Policy):
     info_state = state.information_state_tensor(player)
     legal_actions = state.legal_actions(player)
     with torch.no_grad():
-      state_tensor = torch.FloatTensor(
-          np.expand_dims(info_state, axis=0), device=self._device
+      state_tensor = torch.tensor(
+          np.expand_dims(info_state, axis=0),
+          device=self._device,
+          dtype=torch.float32,
       )
       raw_advantages = (
           self._advantage_networks[player](state_tensor)[0].cpu().numpy()
@@ -530,7 +532,8 @@ class DeepCFRSolver(policy.Policy):
       info_state_vector = np.expand_dims(info_state_vector, axis=0)
     probs = (
         self._policy_network(
-            torch.FloatTensor(info_state_vector, device=self._device)
+            torch.tensor(
+                info_state_vector, device=self._device, dtype=torch.float32)
         )
         .cpu()
         .numpy()
@@ -566,11 +569,14 @@ class DeepCFRSolver(policy.Policy):
         return None
 
       self._optimizer_advantages[player].zero_grad()
-      iters = torch.FloatTensor(samples.iteration, device=self._device).sqrt()
+      iters = torch.tensor(
+          samples.iteration, device=self._device, dtype=torch.float32).sqrt()
       outputs = self._advantage_networks[player](
-          torch.FloatTensor(samples.info_state, device=self._device)
+          torch.tensor(
+              samples.info_state, device=self._device, dtype=torch.float32)
       )
-      advantages = torch.FloatTensor(samples.advantage, device=self._device)
+      advantages = torch.tensor(
+          samples.advantage, device=self._device, dtype=torch.float32)
       loss_advantages = self._loss_advantages(
           iters * outputs, iters * advantages
       )
@@ -604,12 +610,16 @@ class DeepCFRSolver(policy.Policy):
         return None
 
       self._optimizer_policy.zero_grad()
-      iters = torch.FloatTensor(samples.iteration, device=self._device).sqrt()
+      iters = torch.tensor(
+          samples.iteration, device=self._device, dtype=torch.float32).sqrt()
       outputs = self._policy_network(
-          torch.FloatTensor(samples.info_state, device=self._device)
+          torch.tensor(
+              samples.info_state, device=self._device, dtype=torch.float32)
       )
-      ac_probs = torch.FloatTensor(
-          samples.strategy_action_probs, device=self._device
+      ac_probs = torch.tensor(
+          samples.strategy_action_probs,
+          device=self._device,
+          dtype=torch.float32,
       ).squeeze()
       loss_strategy = self._loss_policy(iters * outputs, iters * ac_probs)
       loss_strategy.backward()

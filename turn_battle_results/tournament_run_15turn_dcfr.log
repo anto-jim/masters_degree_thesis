@@ -1,0 +1,8 @@
+Optional module pokerkit_wrapper was not importable: No module named 'pokerkit'
+Game: turn_battle, players=4
+Training device: cuda (NVIDIA GeForce RTX 3060 Ti)
+=== Training alphazero (500 episodes) ===
+  backend: PyTorch AlphaZero on cuda (NVIDIA GeForce RTX 3060 Ti)
+[train alphazero] step 100: win=0.750
+[train alphazero] step 200: win=0.830
+[train alphazero] step 300: win=0.880

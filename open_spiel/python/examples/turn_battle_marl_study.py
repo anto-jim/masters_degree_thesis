@@ -33,6 +33,10 @@ from open_spiel.python.examples.turn_battle_study.config import (
     TRAINABLE_ALGOS,
     normalize_algorithm,
 )
+from open_spiel.python.examples.turn_battle_study.device import (
+    device_label,
+    resolve_device,
+)
 from open_spiel.python.examples.turn_battle_study.evaluation import (
     evaluate_team_matchup,
 )
@@ -49,7 +53,7 @@ from open_spiel.python.examples.turn_battle_study.trainers import train_algorith
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string("game", "turn_battle", "OpenSpiel game string.")
-flags.DEFINE_string("game_params", "num_turns=15", "Comma-separated game parameters.")
+flags.DEFINE_string("game_params", "num_turns=5", "Comma-separated game parameters.")
 flags.DEFINE_enum(
     "mode", "tournament",
     ["train", "evaluate", "compare", "tournament"],
@@ -77,9 +81,15 @@ flags.DEFINE_integer("dcfr_batch_size", 128, "Deep CFR batch size.")
 flags.DEFINE_float("dcfr_learning_rate", 1e-3, "Deep CFR learning rate.")
 flags.DEFINE_integer("dcfr_advantage_steps", 3, "Deep CFR advantage steps.")
 flags.DEFINE_integer("dcfr_policy_steps", 25, "Deep CFR policy steps.")
-flags.DEFINE_integer("dcfr_max_turns", 15, "Deep CFR max turns (match game_params).")
+flags.DEFINE_integer("dcfr_max_turns", 5, "Deep CFR max turns (match game_params).")
 flags.DEFINE_integer("az_train_episodes", 500, "AlphaZero episodes in tournament.")
-flags.DEFINE_integer("dcfr_iterations", 200, "Deep CFR iterations in tournament.")
+flags.DEFINE_integer("dcfr_iterations", 500, "Deep CFR iterations in tournament.")
+flags.DEFINE_float(
+    "train_bot_mix", 0.5,
+    "Probability of RL training episodes vs bot opponents (else self-play).")
+flags.DEFINE_enum(
+    "train_bot_opponent", "mixed", ["random", "heuristic", "mixed"],
+    "Bot opponent type for mixed RL training.")
 flags.DEFINE_boolean("round_robin", True, "Run round-robin before bracket.")
 flags.DEFINE_integer("nfsp_replay_buffer_capacity", 50000, "NFSP replay buffer.")
 flags.DEFINE_integer("nfsp_reservoir_buffer_capacity", 100000, "NFSP reservoir.")
@@ -87,6 +97,9 @@ flags.DEFINE_float("nfsp_anticipatory_param", 0.1, "NFSP anticipatory param.")
 flags.DEFINE_integer("nfsp_batch_size", 64, "NFSP batch size.")
 flags.DEFINE_integer("nfsp_min_buffer_size", 200, "NFSP min buffer.")
 flags.DEFINE_integer("nfsp_learn_every", 32, "NFSP learn frequency.")
+flags.DEFINE_string(
+    "device", "auto",
+    "PyTorch device for neural training (auto, cpu, cuda, cuda:0, ...).")
 
 
 def run_compare(rng: np.random.RandomState) -> None:
@@ -147,6 +160,7 @@ def main(argv):
   del argv
   game = load_game()
   print(f"Game: {game.get_type().short_name}, players={game.num_players()}")
+  print(f"Training device: {device_label(resolve_device(FLAGS.device))}")
   rng = np.random.RandomState(FLAGS.seed)
   start = time.time()
   modes = {
