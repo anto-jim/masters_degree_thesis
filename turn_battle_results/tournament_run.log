@@ -1,0 +1,9 @@
+Optional module pokerkit_wrapper was not importable: No module named 'pokerkit'
+Game: turn_battle, players=4
+=== Training alphazero (500 episodes) ===
+[train alphazero] ep 100: win=0.790
+[train alphazero] ep 200: win=0.790
+[train alphazero] ep 300: win=0.770
+[train alphazero] ep 400: win=0.760
+  seed score vs random: 0.450
+=== Training deep_cfr (40 episodes) ===

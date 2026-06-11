@@ -1,0 +1,5 @@
+{
+  "include": ["open_spiel/python"],
+  "stubPath": "typings",
+  "extraPaths": [".", "build", "build/python"]
+}

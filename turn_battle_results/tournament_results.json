@@ -1,0 +1,53 @@
+{
+  "algorithms": [
+    "alphazero",
+    "deep_cfr",
+    "nfsp",
+    "qpg"
+  ],
+  "seeding": {
+    "alphazero": 0.6166666666666667,
+    "deep_cfr": 0.25,
+    "nfsp": 0.23333333333333334,
+    "qpg": 0.48333333333333334
+  },
+  "champion": "alphazero",
+  "bracket": [
+    {
+      "round": 1,
+      "team1": "alphazero",
+      "team2": "qpg",
+      "winner": "alphazero",
+      "episodes": 60,
+      "team1_win_rate": 0.4166666666666667,
+      "team2_win_rate": 0.0,
+      "draw_rate": 0.5833333333333334,
+      "team1_avg_return": 0.8333333333333334,
+      "team2_avg_return": -0.8333333333333334
+    },
+    {
+      "round": 1,
+      "team1": "deep_cfr",
+      "team2": "nfsp",
+      "winner": "nfsp",
+      "episodes": 60,
+      "team1_win_rate": 0.26666666666666666,
+      "team2_win_rate": 0.38333333333333336,
+      "draw_rate": 0.35,
+      "team1_avg_return": -0.23333333333333334,
+      "team2_avg_return": 0.23333333333333334
+    },
+    {
+      "round": 2,
+      "team1": "alphazero",
+      "team2": "nfsp",
+      "winner": "alphazero",
+      "episodes": 60,
+      "team1_win_rate": 0.13333333333333333,
+      "team2_win_rate": 0.0,
+      "draw_rate": 0.8666666666666667,
+      "team1_avg_return": 0.26666666666666666,
+      "team2_avg_return": -0.26666666666666666
+    }
+  ]
+}

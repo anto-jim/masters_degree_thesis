@@ -27,11 +27,26 @@ namespace open_spiel {
 namespace turn_battle {
 
 inline constexpr int kDefaultNumTurns = 15;
-inline constexpr int kNumPlayers = 4;  // Number of players, split in two teams {0,1} and {2,3}. 0 and 2 are defenders, 1 and 3 are attackers.
-inline constexpr int kMaxPossibleMoves = 5; // 0: Target defender, 1: Target attacker, 2: Self-defence, 3: Special move (for defender, defends itself and ally. for attacker, attacks both opponents), 4: Dead players' action.
-inline constexpr int kMaxHealthPoints = 3; // If the health points reach 0, then the player is considered dead.
+inline constexpr int kNumPlayers = 4;
+inline constexpr int kMaxPossibleMoves = 5;
+inline constexpr int kMaxHealthPoints = 3;
 
-inline constexpr const int kInvalidCard = -1;
+// Teams: {0,1} vs {2,3}. Defenders: 0,2. Attackers: 1,3.
+inline constexpr int kTeamSize = 2;
+inline constexpr Action kTargetEnemyDefender = 0;
+inline constexpr Action kTargetEnemyAttacker = 1;
+inline constexpr Action kSelfDefense = 2;
+inline constexpr Action kSpecialMove = 3;
+inline constexpr Action kDeadPlayerAction = 4;
+
+struct RoleTargets {
+  bool is_defender;
+  int teammate;
+  int enemy_defender;
+  int enemy_attacker;
+};
+
+RoleTargets RoleTargetsFor(Player player);
 
 class TurnBattleObserver;
 
@@ -46,39 +61,41 @@ class TurnBattleState : public SimMoveState {
   std::vector<double> Returns() const override;
   std::string InformationStateString(Player player) const override;
   std::string ObservationString(Player player) const override;
-
   void InformationStateTensor(Player player,
                               absl::Span<float> values) const override;
   void ObservationTensor(Player player,
                          absl::Span<float> values) const override;
   std::unique_ptr<State> Clone() const override;
-
   std::vector<Action> LegalActions(Player player) const override;
 
   int CurrentTurn() const { return current_turn_; }
-  std::vector<int> PlayerHealthPoints() const { return player_health_points_; }
-  std::vector<bool> PlayerSpecialMoves() const { return player_special_moves_; }
-  std::vector<std::vector<Action>> ActionsHistory() const { return actions_history_; }
+  const std::vector<int>& PlayerHealthPoints() const {
+    return player_health_points_;
+  }
+  const std::vector<bool>& PlayerSpecialMoves() const {
+    return player_special_moves_;
+  }
+  const std::vector<std::vector<Action>>& ActionsHistory() const {
+    return actions_history_;
+  }
+
  protected:
   void DoApplyAction(Action action_id) override;
   void DoApplyActions(const std::vector<Action>& actions) override;
 
  private:
   friend class TurnBattleObserver;
-  // Increments the count and increments the player mod kNumPlayers.
-  void NextPlayer(int* count, Player* player) const;
-  void ApplyDamage(const int target, std::vector<int>* player_health_points);
+
+  int TeamHealth(int team) const;
+  void ApplyDamage(int target, std::vector<int>* health);
+  void ResolveTurn(const std::vector<Action>& actions);
   void UpdateWinners();
-  int CurrentPointValue() const { return 1 + point_card_; }
 
   int num_turns_;
-
-  Player current_player_;
-  std::set<int> winners_;
   int current_turn_;
-  int point_card_;
+  std::set<int> winners_;
   std::vector<int> player_health_points_;
-  std::vector<bool> player_special_moves_;  // true if special move is available.
+  std::vector<bool> player_special_moves_;
   std::vector<std::vector<Action>> actions_history_;
 };
 
@@ -96,20 +113,15 @@ class TurnBattleGame : public SimMoveGame {
   std::vector<int> InformationStateTensorShape() const override;
   std::vector<int> ObservationTensorShape() const override;
   int MaxGameLength() const override { return num_turns_; }
+  int MaxChanceNodesInHistory() const override { return 0; }
   std::shared_ptr<Observer> MakeObserver(
       absl::optional<IIGObservationType> iig_obs_type,
       const GameParameters& params) const override;
 
-  int NumRounds() const { return num_turns_; }
   int NumTurns() const { return num_turns_; }
 
-  // Used to implement the old observation API.
   std::shared_ptr<Observer> default_observer_;
   std::shared_ptr<Observer> info_state_observer_;
-  std::shared_ptr<Observer> public_observer_;
-  std::shared_ptr<Observer> private_observer_;
-  // TODO: verify whether this bound is tight and/or tighten it.
-  int MaxChanceNodesInHistory() const override { return 0; }
 
  private:
   int num_turns_;
