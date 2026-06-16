@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from typing import Dict, List, Optional, Sequence, Tuple
+import os
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from absl import flags
 import numpy as np
@@ -17,7 +18,15 @@ from open_spiel.python.examples.turn_battle_study.config import (
 FLAGS = flags.FLAGS
 from open_spiel.python.examples.turn_battle_study.evaluation import evaluate_team_matchup
 from open_spiel.python.examples.turn_battle_study.models import BracketMatch
+from open_spiel.python.examples.turn_battle_study.checkpoints import (
+    load_trained_agents,
+    save_trained_checkpoint,
+)
 from open_spiel.python.examples.turn_battle_study.storage import save_training_log
+from open_spiel.python.examples.turn_battle_study.role_shared import (
+    RoleSharedTeam,
+    select_best_role_seats,
+)
 from open_spiel.python.examples.turn_battle_study.trainers import train_algorithm
 
 
@@ -35,45 +44,57 @@ def _seed_score(
     eval_episodes: int,
     rng: np.random.RandomState,
 ) -> float:
-  """Average win rate vs random from both team slots (roles are asymmetric)."""
-  half = max(1, eval_episodes // 2)
-  fwd = evaluate_team_matchup(
-      algo, "random", half, rng, team1_agents=agents).summary()
-  rev = evaluate_team_matchup(
-      "random", algo, eval_episodes - half, rng, team2_agents=agents).summary()
-  return (fwd["team1_win_rate"] + rev["team2_win_rate"]) / 2.0
+  """Win rate vs random on team1 (defenders P0/P2, attackers P1/P3 in trained slots)."""
+  return evaluate_team_matchup(
+      algo, "random", eval_episodes, rng, team1_agents=agents).summary()[
+          "team1_win_rate"]
 
 
-def _train_budget(algo: str, episodes: int) -> int:
-  if algo == "alphazero":
-    return min(episodes, getattr(FLAGS, "az_train_episodes", 500))
-  if algo == "deep_cfr":
-    return min(episodes, getattr(FLAGS, "dcfr_iterations", 200))
-  if algo in {"nfsp", "qpg"}:
-    return episodes
-  return episodes
-
-
-def train_all(
-    algorithms: Sequence[str],
-    train_episodes: int,
-    eval_every: int,
+def _finalize_rl_agents(
+    key: str,
+    agents: object,
     eval_episodes: int,
     rng: np.random.RandomState,
+) -> object:
+  """Role-shared NFSP/QPG: pick best defender/attacker seats for tournament."""
+  if not isinstance(agents, RoleSharedTeam):
+    return agents
+  def_seat, atk_seat, score = select_best_role_seats(
+      agents, key, eval_episodes, rng)
+  print(
+      f"  role selection: defender seat {def_seat}, attacker seat {atk_seat} "
+      f"(eval win={score:.3f})")
+  return agents
+
+
+def _maybe_finalize_rl_agents(
+    key: str,
+    agents: object,
+    eval_episodes: int,
+    rng: np.random.RandomState,
+) -> object:
+  if isinstance(agents, RoleSharedTeam) and agents.selection is None:
+    return _finalize_rl_agents(key, agents, eval_episodes, rng)
+  return agents
+
+
+def load_all(
+    algorithms: Sequence[str],
     output_dir: str,
+    eval_episodes: int,
+    rng: np.random.RandomState,
 ) -> Tuple[Dict[str, object], Dict[str, float]]:
+  """Load trained checkpoints and compute seeding scores (no retraining)."""
   trained: Dict[str, object] = {}
   seeds: Dict[str, float] = {}
 
   for algo in algorithms:
     key = normalize_algorithm(algo)
-    budget = _train_budget(key, train_episodes)
-    print(f"=== Training {key} ({budget} episodes) ===")
+    print(f"=== Loading {key} from checkpoint ===")
     if key in TRAINABLE_ALGOS:
-      eval_interval = max(1, min(eval_every // 2, max(budget // 4, 25)))
-      agents, log = train_algorithm(
-          key, budget, eval_interval, eval_episodes, rng)
-      save_training_log(log, output_dir)
+      ckpt_dir = f"{output_dir}/checkpoints/{key}"
+      agents = load_trained_agents(key, ckpt_dir, rng)
+      agents = _maybe_finalize_rl_agents(key, agents, eval_episodes, rng)
       trained[key] = agents
       seeds[key] = _seed_score(key, agents, eval_episodes, rng)
     elif key in BOT_ALGOS:
@@ -83,6 +104,89 @@ def train_all(
     else:
       continue
     print(f"  seed score vs random: {seeds[key]:.3f}")
+  return trained, seeds
+
+
+def _retrain_algorithm_set(
+    retrain_algorithms: Optional[Sequence[str]],
+) -> Optional[Set[str]]:
+  if not retrain_algorithms:
+    return None
+  return {normalize_algorithm(a) for a in retrain_algorithms}
+
+
+def _load_one_algorithm(
+    key: str,
+    output_dir: str,
+    eval_episodes: int,
+    rng: np.random.RandomState,
+) -> Tuple[object, float]:
+  print(f"=== Loading {key} from checkpoint ===")
+  ckpt_dir = f"{output_dir}/checkpoints/{key}"
+  if not os.path.isdir(ckpt_dir):
+    raise FileNotFoundError(
+        f"Checkpoint required for {key} but missing: {ckpt_dir}")
+  agents = load_trained_agents(key, ckpt_dir, rng)
+  agents = _maybe_finalize_rl_agents(key, agents, eval_episodes, rng)
+  seed_score = _seed_score(key, agents, eval_episodes, rng)
+  print(f"  seed score vs random: {seed_score:.3f}")
+  return agents, seed_score
+
+
+def _train_one_algorithm(
+    key: str,
+    train_episodes: int,
+    eval_every: int,
+    eval_episodes: int,
+    rng: np.random.RandomState,
+    output_dir: str,
+) -> Tuple[object, float]:
+  print(f"=== Training {key} ({train_episodes} episodes) ===")
+  eval_interval = max(1, min(eval_every, max(train_episodes // 6, 25)))
+  agents, log, artifact = train_algorithm(
+      key, train_episodes, eval_interval, eval_episodes, rng)
+  agents = _finalize_rl_agents(key, agents, eval_episodes, rng)
+  save_training_log(log, output_dir)
+  if getattr(FLAGS, "save_checkpoints", True):
+    ckpt_dir = f"{output_dir}/checkpoints/{key}"
+    save_trained_checkpoint(key, agents, artifact, ckpt_dir)
+    print(f"  checkpoint saved: {ckpt_dir}")
+  seed_score = _seed_score(key, agents, eval_episodes, rng)
+  print(f"  seed score vs random: {seed_score:.3f}")
+  return agents, seed_score
+
+
+def train_all(
+    algorithms: Sequence[str],
+    train_episodes: int,
+    eval_every: int,
+    eval_episodes: int,
+    rng: np.random.RandomState,
+    output_dir: str,
+    retrain_algorithms: Optional[Sequence[str]] = None,
+) -> Tuple[Dict[str, object], Dict[str, float]]:
+  trained: Dict[str, object] = {}
+  seeds: Dict[str, float] = {}
+  retrain_only = _retrain_algorithm_set(retrain_algorithms)
+
+  for algo in algorithms:
+    key = normalize_algorithm(algo)
+    if key in TRAINABLE_ALGOS:
+      if retrain_only is not None and key not in retrain_only:
+        agents, seed_score = _load_one_algorithm(
+            key, output_dir, eval_episodes, rng)
+      else:
+        agents, seed_score = _train_one_algorithm(
+            key, train_episodes, eval_every, eval_episodes, rng, output_dir)
+      trained[key] = agents
+      seeds[key] = seed_score
+    elif key in BOT_ALGOS:
+      trained[key] = None
+      stats = evaluate_team_matchup(key, "random", eval_episodes, rng).summary()
+      seeds[key] = stats["team1_win_rate"]
+      print(f"  seed score vs random: {seeds[key]:.3f}")
+    else:
+      continue
   return trained, seeds
 
 
@@ -133,18 +237,12 @@ def _pairwise_win_rate(
     eval_episodes: int,
     rng: np.random.RandomState,
     trained: Dict[str, Optional[object]],
-) -> Tuple[float, float, Dict[str, float], Dict[str, float]]:
-  """Bidirectional win rates for algo_a vs algo_b (team-slot averaged)."""
-  half = max(1, eval_episodes // 2)
-  fwd = evaluate_team_matchup(
-      algo_a, algo_b, half, rng,
+) -> Tuple[float, float, Dict[str, float]]:
+  """Win rates with algo_a on team1 and algo_b on team2 (fixed role slots)."""
+  stats = evaluate_team_matchup(
+      algo_a, algo_b, eval_episodes, rng,
       team1_agents=trained.get(algo_a), team2_agents=trained.get(algo_b)).summary()
-  rev = evaluate_team_matchup(
-      algo_b, algo_a, eval_episodes - half, rng,
-      team1_agents=trained.get(algo_b), team2_agents=trained.get(algo_a)).summary()
-  a_rate = (fwd["team1_win_rate"] + rev["team2_win_rate"]) / 2.0
-  b_rate = (fwd["team2_win_rate"] + rev["team1_win_rate"]) / 2.0
-  return a_rate, b_rate, fwd, rev
+  return stats["team1_win_rate"], stats["team2_win_rate"], stats
 
 
 def run_round_robin(
@@ -161,7 +259,7 @@ def run_round_robin(
   for i, a in enumerate(algos):
     matrix[a][a] = 0.5
     for b in algos[i + 1:]:
-      a_rate, b_rate, fwd, rev = _pairwise_win_rate(
+      a_rate, b_rate, stats = _pairwise_win_rate(
           a, b, eval_episodes, rng, trained)
       matrix[a][b] = a_rate
       matrix[b][a] = b_rate
@@ -177,8 +275,7 @@ def run_round_robin(
           "team2": b,
           "team1_win_rate": a_rate,
           "team2_win_rate": b_rate,
-          "forward": fwd,
-          "reverse": rev,
+          "match": stats,
       })
       print(f"RR: {a} vs {b} -> {a_rate:.2f}-{b_rate:.2f}")
 
@@ -203,8 +300,13 @@ def run_full_tournament(
     output_dir: str,
 ) -> Dict[str, object]:
   algos = [normalize_algorithm(a) for a in algorithms]
-  trained, seeds = train_all(
-      algos, train_episodes, eval_every, eval_episodes, rng, output_dir)
+  retrain_algorithms = getattr(FLAGS, "retrain_algorithms", None) or None
+  if train_episodes <= 0:
+    trained, seeds = load_all(algos, output_dir, eval_episodes, rng)
+  else:
+    trained, seeds = train_all(
+        algos, train_episodes, eval_every, eval_episodes, rng, output_dir,
+        retrain_algorithms=retrain_algorithms)
 
   round_robin_pairs: List[Dict] = []
   round_robin_matrix: Dict[str, Dict[str, float]] = {}
@@ -219,8 +321,18 @@ def run_full_tournament(
       trained, seeds, bracket_size, eval_episodes, rng)
 
   payload = {
+      "train_episodes": train_episodes,
       "algorithms": algos,
       "seeding": seeds,
+      "role_selection": {
+          algo: {
+              "defender_seat": trained[algo].selection[0],
+              "attacker_seat": trained[algo].selection[1],
+          }
+          for algo in algos
+          if isinstance(trained.get(algo), RoleSharedTeam)
+          and trained[algo].selection is not None
+      },
       "round_robin": {
           "pairs": round_robin_pairs,
           "matrix": round_robin_matrix,

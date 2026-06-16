@@ -48,7 +48,7 @@ export OPEN_SPIEL_BUILD_WITH_JULIA=${OPEN_SPIEL_BUILD_WITH_JULIA:-"OFF"}
 
 # Download the header-only library, libnop (https://github.com/google/libnop),
 # to support the serialization and deserialization of C++ data types.
-export OPEN_SPIEL_BUILD_WITH_LIBNOP="${OPEN_SPIEL_BUILD_WITH_LIBNOP:-"OFF"}"
+export OPEN_SPIEL_BUILD_WITH_LIBNOP="${OPEN_SPIEL_BUILD_WITH_LIBNOP:-"ON"}"
 
 # Download precompiled binaries for libtorch (PyTorch C++ API).
 # See https://pytorch.org/cppdocs/ for C++ documentation.
@@ -64,7 +64,7 @@ export OPEN_SPIEL_BUILD_WITH_LIBNOP="${OPEN_SPIEL_BUILD_WITH_LIBNOP:-"OFF"}"
 # > as its Python counterpart.
 #
 # You can find an example usage in open_spiel/libtorch/torch_integration_test.cc
-export OPEN_SPIEL_BUILD_WITH_LIBTORCH="${OPEN_SPIEL_BUILD_WITH_LIBTORCH:-"OFF"}"
+export OPEN_SPIEL_BUILD_WITH_LIBTORCH="${OPEN_SPIEL_BUILD_WITH_LIBTORCH:-"ON"}"
 
 # Libtorch download URL - you may need to change this depending on your system
 #
@@ -86,7 +86,9 @@ export OPEN_SPIEL_BUILD_WITH_LIBTORCH="${OPEN_SPIEL_BUILD_WITH_LIBTORCH:-"OFF"}"
 # Note: there are currently known problems with the C++ PyTorch: inteferences
 # with pybind11 versions. Until it is properly fixed, there is a workaround:
 # https://github.com/deepmind/open_spiel/issues/966#issuecomment-1322982393
-export OPEN_SPIEL_BUILD_WITH_LIBTORCH_DOWNLOAD_URL="${OPEN_SPIEL_BUILD_WITH_LIBTORCH_DOWNLOAD_URL:-"https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.3.0%2Bcu121.zip"}"
+# CUDA LibTorch (cu126) for GPU AlphaZero training. Override in the shell before
+# sourcing this file if you need a different build.
+export OPEN_SPIEL_BUILD_WITH_LIBTORCH_DOWNLOAD_URL="https://download.pytorch.org/libtorch/cu126/libtorch-cxx11-abi-shared-with-deps-2.6.0%2Bcu126.zip"
 
 # Enable integration with GAMUT game generator (see games/gamut).
 # Requires java and GAMUT, so disabled by default.

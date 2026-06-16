@@ -143,7 +143,8 @@ def generate_latex_report(output_dir: str) -> str:
       r"\section{Overview}",
       "This report summarizes training, round-robin, and bracket-tournament "
       r"results on the \texttt{turn\_battle} OpenSpiel environment "
-      "(4-player team combat, 15 turns).",
+      "(4-player team combat). Every algorithm is trained for the same "
+      "number of episodes (\\texttt{train\\_episodes}).",
       r"\section{Training curves}",
       r"Figure~\ref{fig:training} shows evaluation win rate against a random "
       "baseline during training.",
@@ -154,7 +155,8 @@ def generate_latex_report(output_dir: str) -> str:
       r"\label{fig:training}",
       r"\end{figure}",
       r"\section{Seeding}",
-      "Algorithms were ranked by bidirectional win rate vs.\\ random before "
+      "Algorithms were ranked by win rate vs.\\ random on team~1 "
+      "(defenders on players~0/2, attackers on players~1/3) before "
       "the elimination bracket.",
       r"\begin{table}[h]",
       r"\centering",
@@ -168,7 +170,7 @@ def generate_latex_report(output_dir: str) -> str:
   lines += [
       r"\bottomrule",
       r"\end{tabular}",
-      r"\caption{Seeding scores (team-slot averaged).}",
+      r"\caption{Seeding scores (fixed role slots).}",
       r"\end{table}",
       r"\begin{figure}[h]",
       r"\centering",
@@ -181,8 +183,8 @@ def generate_latex_report(output_dir: str) -> str:
   if rr_standings:
     lines += [
         r"\section{Round-robin}",
-        "Every algorithm played every other algorithm. Win rates are averaged "
-        "over both team slots per pairing.",
+        "Every algorithm played every other algorithm on fixed team slots "
+        "(team~1 vs team~2; defenders and attackers keep trained roles).",
         r"\begin{figure}[h]",
         r"\centering",
         r"\includegraphics[width=0.85\linewidth]{figures/round_robin.pdf}",

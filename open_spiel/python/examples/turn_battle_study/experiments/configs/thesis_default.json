@@ -1,0 +1,19 @@
+{
+  "description": "Default thesis experiment configuration — Antonio Jiménez Godínez, ISIA UMA (anteproyecto May 2024)",
+  "thesis_title_en": "Adaptation and Integration of MARL Algorithms in a Turn-Based Multiagent Combat Environment Using OpenSpiel",
+  "mode": "multi_seed",
+  "game": "turn_battle",
+  "game_params": "num_turns=5",
+  "algorithms": ["alphazero", "deep_cfr", "nfsp", "qpg"],
+  "train_episodes": 300,
+  "eval_episodes": 50,
+  "eval_every": 50,
+  "bracket_size": 4,
+  "round_robin": true,
+  "save_checkpoints": true,
+  "seeds": [42, 43, 44, 45, 46],
+  "results_root": "turn_battle_results/production_final",
+  "train_bot_mix": 0.5,
+  "train_bot_opponent": "mixed",
+  "device": "auto"
+}

@@ -30,6 +30,7 @@ from open_spiel.python.examples.turn_battle_study.game import (
     load_turn_based_game,
     make_rl_environment,
 )
+from open_spiel.python.examples.turn_battle_study.role_shared import agents_for_matchup
 from open_spiel.python.examples.turn_battle_study.models import MatchResult
 from open_spiel.python.pytorch import nfsp
 import pyspiel
@@ -162,6 +163,10 @@ def _turn_based_bot_for_player(
 def evaluate_team_matchup(
     team1_algo, team2_algo, num_episodes, rng,
     team1_agents=None, team2_agents=None) -> MatchResult:
+  if team1_agents is not None:
+    team1_agents = agents_for_matchup(team1_agents, for_team1=True)
+  if team2_agents is not None:
+    team2_agents = agents_for_matchup(team2_agents, for_team1=False)
   result = MatchResult()
   game = load_game()
   t1, t2 = normalize_algorithm(team1_algo), normalize_algorithm(team2_algo)

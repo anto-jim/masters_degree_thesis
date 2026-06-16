@@ -1,0 +1,74 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\title{Turn Battle MARL Thesis --- Aggregated Results}
+\author{Multi-seed tournament study}
+\date{\today}
+\begin{document}
+\maketitle
+\section{Experimental setup}
+Each algorithm was trained for 300 episodes across 3 independent random seeds.
+\section{Seeding performance}
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+Algorithm & Mean & CI low & CI high \\
+\midrule
+alphazero & 0.747 & 0.674 & 0.819 \\
+nfsp & 0.320 & 0.320 & 0.320 \\
+qpg & 0.280 & 0.241 & 0.319 \\
+deep_cfr & 0.273 & 0.216 & 0.330 \\
+\bottomrule
+\end{tabular}
+\caption{Win rate vs random on team~1 with fixed role slots (mean over seeds $\pm$ 95\% CI).}
+\end{table}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/aggregated_seeding.pdf}
+\caption{Seeding scores with 95\% confidence intervals across seeds.}
+\end{figure}
+\section{Round-robin summary}
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Algorithm & Mean RR points & Mean pairwise win rate \\
+\midrule
+alphazero & 3.00 & 0.664 \\
+qpg & 1.50 & 0.289 \\
+nfsp & 0.83 & 0.249 \\
+deep_cfr & 0.67 & 0.207 \\
+\bottomrule
+\end{tabular}
+\caption{Round-robin standings averaged across seeds.}
+\end{table}
+\section{Bracket champion frequency}
+\begin{table}[h]
+\centering
+\begin{tabular}{lc}
+\toprule
+Algorithm & Champion frequency \\
+\midrule
+alphazero & 1.00 \\
+deep_cfr & 0.00 \\
+nfsp & 0.00 \\
+qpg & 0.00 \\
+\bottomrule
+\end{tabular}
+\caption{Fraction of seeds where each algorithm won the bracket.}
+\end{table}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\linewidth]{figures/champion_frequency.pdf}
+\caption{Bracket champion frequency across seeds.}
+\end{figure}
+\section{Per-seed champions}
+\begin{itemize}
+\item Seed 42: champion = \texttt{alphazero}
+\item Seed 43: champion = \texttt{alphazero}
+\item Seed 44: champion = \texttt{alphazero}
+\end{itemize}
+\end{document}

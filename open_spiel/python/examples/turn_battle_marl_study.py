@@ -14,7 +14,7 @@
 
 """Comparative MARL study on Turn Battle.
 
-Modes: train, evaluate, compare, tournament (train all + bracket + LaTeX).
+Modes: train, evaluate, compare, tournament, multi_seed, aggregate.
 """
 
 from __future__ import annotations
@@ -27,9 +27,18 @@ from absl import app
 from absl import flags
 import numpy as np
 
+from open_spiel.python.examples.turn_battle_study.aggregate import (
+    aggregate_multi_seed_results,
+    generate_aggregated_latex_report,
+)
 from open_spiel.python.examples.turn_battle_study.config import (
     ALL_ALGORITHMS,
     BOT_ALGOS,
+    DEFAULT_EVAL_EVERY,
+    DEFAULT_EVAL_EPISODES,
+    DEFAULT_SEEDS,
+    DEFAULT_TRAIN_EPISODES,
+    THESIS_ALGORITHMS,
     TRAINABLE_ALGOS,
     normalize_algorithm,
 )
@@ -45,6 +54,7 @@ from open_spiel.python.examples.turn_battle_study.report import generate_latex_r
 from open_spiel.python.examples.turn_battle_study.storage import (
     ensure_output_dir,
     save_comparison_table,
+    save_experiment_config,
     save_training_log,
 )
 from open_spiel.python.examples.turn_battle_study.tournament import run_full_tournament
@@ -56,18 +66,41 @@ flags.DEFINE_string("game", "turn_battle", "OpenSpiel game string.")
 flags.DEFINE_string("game_params", "num_turns=5", "Comma-separated game parameters.")
 flags.DEFINE_enum(
     "mode", "tournament",
-    ["train", "evaluate", "compare", "tournament"],
+    ["train", "evaluate", "compare", "tournament", "multi_seed", "aggregate"],
     "Experiment mode.")
-flags.DEFINE_list("algorithms", ALL_ALGORITHMS, "Algorithms to compare/tournament.")
+flags.DEFINE_list(
+    "algorithms", THESIS_ALGORITHMS,
+    "Algorithms to compare/tournament (thesis default: 4 paradigms).")
 flags.DEFINE_string("algorithm", "qpg", "Algorithm for train mode.")
 flags.DEFINE_string("team1_algo", "qpg", "Algorithm for team 1 (players 0,1).")
 flags.DEFINE_string("team2_algo", "random", "Algorithm for team 2 (players 2,3).")
-flags.DEFINE_integer("train_episodes", 3000, "Training episodes.")
-flags.DEFINE_integer("eval_episodes", 100, "Evaluation episodes per matchup.")
-flags.DEFINE_integer("eval_every", 500, "Evaluate during training every N episodes.")
-flags.DEFINE_integer("bracket_size", 8, "Bracket field size (top-N by seeding).")
+flags.DEFINE_integer(
+    "train_episodes", DEFAULT_TRAIN_EPISODES,
+    "Training episodes per algorithm (same count for all algorithms).")
+flags.DEFINE_integer(
+    "eval_episodes", DEFAULT_EVAL_EPISODES,
+    "Evaluation episodes per matchup.")
+flags.DEFINE_integer(
+    "eval_every", DEFAULT_EVAL_EVERY,
+    "Evaluate during training every N episodes.")
+flags.DEFINE_integer(
+    "bracket_size", 4,
+    "Bracket field size (thesis: 4 algorithms).")
 flags.DEFINE_integer("seed", 42, "Random seed.")
 flags.DEFINE_string("output_dir", "turn_battle_results", "Output directory.")
+flags.DEFINE_string(
+    "results_root", "turn_battle_results",
+    "Root directory for multi-seed runs (seed_N subfolders).")
+flags.DEFINE_list(
+    "seeds", [str(s) for s in DEFAULT_SEEDS],
+    "Random seeds for multi_seed mode.")
+flags.DEFINE_boolean(
+    "save_checkpoints", True,
+    "Save trained model checkpoints after each algorithm.")
+flags.DEFINE_list(
+    "retrain_algorithms", [],
+    "When set, only these algorithms are trained; others load from "
+    "output_dir/checkpoints/ (requires existing checkpoints).")
 flags.DEFINE_integer("mcts_simulations", 50, "MCTS simulations per move.")
 flags.DEFINE_float("mcts_uct_c", 2.0, "MCTS UCT exploration constant.")
 flags.DEFINE_integer("mcts_rollouts", 1, "Random rollouts per MCTS evaluation.")
@@ -76,14 +109,38 @@ flags.DEFINE_integer("az_batch_size", 64, "AlphaZero batch size.")
 flags.DEFINE_float("az_learning_rate", 1e-3, "AlphaZero learning rate.")
 flags.DEFINE_float("az_temperature", 1.0, "AlphaZero self-play temperature.")
 flags.DEFINE_integer("az_temperature_drop", 4, "Greedy after N moves.")
-flags.DEFINE_integer("dcfr_traversals", 3, "Deep CFR traversals per iteration.")
-flags.DEFINE_integer("dcfr_batch_size", 128, "Deep CFR batch size.")
-flags.DEFINE_float("dcfr_learning_rate", 1e-3, "Deep CFR learning rate.")
-flags.DEFINE_integer("dcfr_advantage_steps", 3, "Deep CFR advantage steps.")
-flags.DEFINE_integer("dcfr_policy_steps", 25, "Deep CFR policy steps.")
+flags.DEFINE_string(
+    "az_cpp_nn_model", "mlp",
+    "C++ AlphaZero network type (mlp or resnet; Python eval supports mlp).")
+flags.DEFINE_integer("az_cpp_nn_width", 128, "C++ AlphaZero MLP width.")
+flags.DEFINE_integer("az_cpp_nn_depth", 2, "C++ AlphaZero MLP depth.")
+flags.DEFINE_float("az_cpp_weight_decay", 1e-4, "C++ AlphaZero L2 weight decay.")
+flags.DEFINE_integer("az_cpp_replay_reuse", 3, "C++ AlphaZero replay reuse count.")
+flags.DEFINE_integer("az_cpp_checkpoint_freq", 100, "C++ AlphaZero checkpoint frequency.")
+flags.DEFINE_integer("az_cpp_actors", 2, "C++ AlphaZero self-play actors.")
+flags.DEFINE_integer("az_cpp_evaluators", 1, "C++ AlphaZero evaluators.")
+flags.DEFINE_integer("az_cpp_eval_levels", 3, "C++ AlphaZero eval MCTS levels.")
+flags.DEFINE_integer(
+    "az_cpp_evaluation_window", 50,
+    "C++ AlphaZero evaluation averaging window.")
+flags.DEFINE_integer(
+    "dcfr_traversals", 10,
+    "Deep CFR traversals per player per iteration (balance quality vs GPU time).")
+flags.DEFINE_integer(
+    "dcfr_batch_size", 32,
+    "Deep CFR batch size (must be reachable with few traversals on small games).")
+flags.DEFINE_float("dcfr_learning_rate", 1e-4, "Deep CFR learning rate.")
+flags.DEFINE_integer("dcfr_advantage_steps", 10, "Deep CFR advantage steps per player.")
+flags.DEFINE_integer(
+    "dcfr_policy_steps", 10,
+    "Deep CFR average-strategy network steps per iteration.")
+flags.DEFINE_boolean(
+    "dcfr_train_strategy_each_iteration", False,
+    "Retrain average policy every iteration; if false, only before eval checkpoints.")
+flags.DEFINE_boolean(
+    "dcfr_reinitialize_advantage_networks", False,
+    "Reset advantage nets each iteration (canonical Deep CFR; off for short budgets).")
 flags.DEFINE_integer("dcfr_max_turns", 5, "Deep CFR max turns (match game_params).")
-flags.DEFINE_integer("az_train_episodes", 500, "AlphaZero episodes in tournament.")
-flags.DEFINE_integer("dcfr_iterations", 500, "Deep CFR iterations in tournament.")
 flags.DEFINE_float(
     "train_bot_mix", 0.5,
     "Probability of RL training episodes vs bot opponents (else self-play).")
@@ -108,7 +165,7 @@ def run_compare(rng: np.random.RandomState) -> None:
   for algo in map(normalize_algorithm, FLAGS.algorithms):
     row = {"algorithm": algo}
     if algo in TRAINABLE_ALGOS:
-      agents, log = train_algorithm(
+      agents, log, _artifact = train_algorithm(
           algo, FLAGS.train_episodes, FLAGS.eval_every, FLAGS.eval_episodes, rng)
       save_training_log(log, output_dir)
       matchup = evaluate_team_matchup(
@@ -126,7 +183,7 @@ def run_compare(rng: np.random.RandomState) -> None:
 def run_train(rng: np.random.RandomState) -> None:
   output_dir = ensure_output_dir(FLAGS.output_dir)
   algo = normalize_algorithm(FLAGS.algorithm)
-  agents, log = train_algorithm(
+  agents, log, _artifact = train_algorithm(
       algo, FLAGS.train_episodes, FLAGS.eval_every, FLAGS.eval_episodes, rng)
   save_training_log(log, output_dir)
   print(evaluate_team_matchup(
@@ -149,6 +206,7 @@ def run_evaluate(rng: np.random.RandomState) -> None:
 
 def run_tournament(rng: np.random.RandomState) -> None:
   output_dir = ensure_output_dir(FLAGS.output_dir)
+  save_experiment_config(output_dir, seed=FLAGS.seed)
   run_full_tournament(
       FLAGS.algorithms, FLAGS.train_episodes, FLAGS.eval_every,
       FLAGS.eval_episodes, FLAGS.bracket_size, rng, output_dir)
@@ -156,10 +214,44 @@ def run_tournament(rng: np.random.RandomState) -> None:
   print(f"LaTeX report: {tex}")
 
 
+def run_multi_seed(_rng: np.random.RandomState) -> None:
+  root = ensure_output_dir(FLAGS.results_root)
+  seeds = [int(s) for s in FLAGS.seeds]
+  retrain = getattr(FLAGS, "retrain_algorithms", None) or []
+  print(f"Running {len(seeds)} seeds: {seeds} "
+        f"(train_episodes={FLAGS.train_episodes})")
+  if retrain:
+    print(f"Partial retrain: {retrain} (others load from checkpoints)")
+  for seed in seeds:
+    output_dir = os.path.join(root, f"seed_{seed}")
+    ensure_output_dir(output_dir)
+    save_experiment_config(output_dir, seed=seed)
+    print(f"\n========== Seed {seed} -> {output_dir} ==========")
+    run_full_tournament(
+        FLAGS.algorithms, FLAGS.train_episodes, FLAGS.eval_every,
+        FLAGS.eval_episodes, FLAGS.bracket_size,
+        np.random.RandomState(seed), output_dir)
+    generate_latex_report(output_dir)
+  agg = aggregate_multi_seed_results(root, seeds)
+  tex = generate_aggregated_latex_report(root, agg)
+  print(f"\nMulti-seed aggregation complete: {root}/aggregated_results.json")
+  print(f"Aggregated LaTeX report: {tex}")
+
+
+def run_aggregate(_rng: np.random.RandomState) -> None:
+  root = ensure_output_dir(FLAGS.results_root)
+  seeds = [int(s) for s in FLAGS.seeds]
+  agg = aggregate_multi_seed_results(root, seeds)
+  tex = generate_aggregated_latex_report(root, agg)
+  print(f"Aggregated results: {root}/aggregated_results.json")
+  print(f"Aggregated LaTeX report: {tex}")
+
+
 def main(argv):
   del argv
   game = load_game()
   print(f"Game: {game.get_type().short_name}, players={game.num_players()}")
+  print(f"Train episodes per algorithm: {FLAGS.train_episodes}")
   print(f"Training device: {device_label(resolve_device(FLAGS.device))}")
   rng = np.random.RandomState(FLAGS.seed)
   start = time.time()
@@ -168,6 +260,8 @@ def main(argv):
       "evaluate": run_evaluate,
       "compare": run_compare,
       "tournament": run_tournament,
+      "multi_seed": run_multi_seed,
+      "aggregate": run_aggregate,
   }
   modes[FLAGS.mode](rng)
   print(f"Done in {time.time() - start:.1f}s")

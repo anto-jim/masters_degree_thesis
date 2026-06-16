@@ -19,6 +19,8 @@ add_library (game_transforms OBJECT
   start_at.h
   turn_based_simultaneous_game.cc
   turn_based_simultaneous_game.h
+  turn_battle_teams.cc
+  turn_battle_teams.h
   zerosum.cc
   zerosum.h
 )
@@ -89,3 +91,9 @@ add_executable(zerosum_test
                ${OPEN_SPIEL_OBJECTS}
                $<TARGET_OBJECTS:tests>)
 add_test(zerosum_test zerosum_test)
+
+add_executable(turn_battle_teams_test
+               turn_battle_teams_test.cc
+               ${OPEN_SPIEL_OBJECTS}
+               $<TARGET_OBJECTS:tests>)
+add_test(turn_battle_teams_test turn_battle_teams_test)

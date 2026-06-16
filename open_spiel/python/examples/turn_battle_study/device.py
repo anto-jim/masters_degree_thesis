@@ -13,6 +13,15 @@ def resolve_device(name: str) -> torch.device:
   return torch.device(name)
 
 
+def resolve_cpp_az_devices(name: str) -> str:
+  """Device string for ``alpha_zero_torch_example`` (--devices flag)."""
+  device = resolve_device(name)
+  if device.type == "cuda":
+    idx = device.index if device.index is not None else torch.cuda.current_device()
+    return f"cuda:{idx}"
+  return "cpu"
+
+
 def device_label(device: torch.device) -> str:
   if device.type == "cuda":
     idx = device.index if device.index is not None else torch.cuda.current_device()

@@ -1,0 +1,10 @@
+{
+  "episodes": 5,
+  "team1_win_rate": 0.4,
+  "team2_win_rate": 0.2,
+  "draw_rate": 0.4,
+  "team1_avg_return": 0.4,
+  "team2_avg_return": -0.4,
+  "team1_algo": "random",
+  "team2_algo": "random"
+}

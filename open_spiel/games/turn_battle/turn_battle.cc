@@ -142,9 +142,24 @@ std::vector<Action> TurnBattleState::LegalActions(Player player) const {
   if (player == kSimultaneousPlayerId) return LegalFlatJointActions();
   if (player_health_points_[player] <= 0) return {kDeadPlayerAction};
 
-  std::vector<Action> legal = {kTargetEnemyDefender, kTargetEnemyAttacker,
-                               kSelfDefense};
-  if (player_special_moves_[player]) legal.push_back(kSpecialMove);
+  const RoleTargets role = RoleTargetsFor(player);
+  std::vector<Action> legal;
+  if (player_health_points_[role.enemy_defender] > 0) {
+    legal.push_back(kTargetEnemyDefender);
+  }
+  if (player_health_points_[role.enemy_attacker] > 0) {
+    legal.push_back(kTargetEnemyAttacker);
+  }
+  legal.push_back(kSelfDefense);
+  if (player_special_moves_[player]) {
+    if (role.is_defender) {
+      legal.push_back(kSpecialMove);
+    } else if (player_health_points_[role.enemy_defender] > 0 ||
+               player_health_points_[role.enemy_attacker] > 0) {
+      // Attacker special hits living enemies only; skip if both are dead.
+      legal.push_back(kSpecialMove);
+    }
+  }
   return legal;
 }
 
