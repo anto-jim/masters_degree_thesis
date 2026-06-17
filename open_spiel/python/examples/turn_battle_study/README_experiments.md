@@ -6,6 +6,23 @@
 Comparative study of **AlphaZero**, **Deep CFR**, **NFSP**, and **QPG** on the
 `turn_battle` OpenSpiel game.
 
+## Package layout
+
+| Module | Role |
+|--------|------|
+| `turn_battle_marl_study.py` | CLI entry point (modes, flags) |
+| `config.py` | Algorithm registry, thesis defaults |
+| `game.py` / `device.py` | Game loading, GPU/CPU resolution |
+| `agents.py` / `trainers.py` | RL factories and training loops |
+| `az_cpp.py` | C++ AlphaZero driver + tournament eval bots |
+| `bots.py` / `evaluation.py` | Bot adapters, match runners |
+| `role_shared.py` | Shared defender/attacker policies (NFSP, QPG) |
+| `tournament.py` | Train → seed → round-robin → bracket |
+| `checkpoints.py` | Save/load trained agents |
+| `storage.py` / `report.py` / `aggregate.py` | Artifacts and LaTeX reports |
+
+Full reference: `master's degree docs/CODE_DOCUMENTATION.md`.
+
 ## AlphaZero (C++ LibTorch)
 
 AlphaZero uses OpenSpiel's official C++ implementation
@@ -89,6 +106,9 @@ per-algorithm cap or alternate budget.
 `train_episodes` is stored in `experiment_config.json` and
 `tournament_results.json`.
 
+Training curves (`training_<algo>.csv`) log win rate vs `random` on team~1 every
+`eval_every` steps **and** at the final episode (RL and Deep CFR trainers).
+
 **Thesis note:** Equal episode counts do not imply equal wall-clock time or
 gradient steps. Report training curves to show convergence differences.
 
@@ -106,7 +126,7 @@ python open_spiel/python/examples/turn_battle_marl_study.py \
   --seed=42 \
   --output_dir=turn_battle_results/seed_42
 
-# Full thesis campaign (5 seeds, checkpoints, aggregation)
+# Multi-seed campaign (default seeds 42–46; use --seeds=42,43,44 for canonical 3-seed run)
 python open_spiel/python/examples/turn_battle_marl_study.py \
   --mode=multi_seed \
   --train_episodes=300 \
@@ -158,17 +178,25 @@ See `experiments/configs/thesis_default.json` for the canonical flag snapshot.
 ## Checkpoints
 
 Trained models are saved under `checkpoints/<algorithm>/` when
-`--save_checkpoints=true` (default).
+`--save_checkpoints=true` (default). Implemented in `checkpoints.py`.
 
-| Algorithm | Checkpoint contents |
+| Algorithm | Checkpoint layout |
 |-----------|---------------------|
-| AlphaZero | C++ run dir: `vpnet.pb`, `checkpoint--1.pt`, `config.json`, … |
-| Others | See `checkpoints.py` |
+| AlphaZero | C++ run dir: `vpnet.pb`, `checkpoint--1.pt`, `config.json`, `metadata.json`, … |
+| Deep CFR | `model.pt` (policy + advantage nets + iteration) |
+| NFSP / QPG (role-shared) | `role_defender/`, `role_attacker/`, optional `role_selection.json` |
+| NFSP / QPG (legacy) | `player_0/` … `player_3/` per-seat weights |
+
+NFSP uses custom save/load helpers (`model_state_dict` keys) because OpenSpiel's
+built-in `NFSP.save` / `NFSP.restore` keys do not match.
 
 Reload with:
 
 ```python
+import numpy as np
 from open_spiel.python.examples.turn_battle_study.checkpoints import load_trained_agents
+
+rng = np.random.RandomState(42)
 agents = load_trained_agents(
     "alphazero", "turn_battle_results/seed_42/checkpoints/alphazero", rng)
 ```
@@ -192,12 +220,15 @@ Algorithms not listed in `--retrain_algorithms` are loaded from
 
 ## Evaluation Design
 
-- **Fixed role slots:** each algorithm's trained defenders (players 0, 2) and
-  attackers (players 1, 3) stay in those positions. Seeding and round-robin use
-  team~1 vs team~2 matchups only (no team-slot swapping).
-- **Role-shared training (NFSP, QPG):** one defender policy and one attacker policy
-  pool experience from both teams; before the tournament the best defender seat
-  (0 or 2) and attacker seat (1 or 3) are selected by short eval.
+- **Fixed role slots:** tournament matchups use team~1 (players 0, 1) vs team~2
+  (players 2, 3) without swapping teams.
+- **Role-shared training (NFSP, QPG):** one defender policy and one attacker
+  policy pool experience from both teams. Before the tournament,
+  `select_best_role_seats()` evaluates four facade pairs `(0,1)`, `(0,3)`,
+  `(2,1)`, `(2,3)` and deploys the winner via `_lineup_with_seats()`.
+- **NFSP tournament play:** evaluation uses the average policy
+  (`AVERAGE_POLICY` mode), including when NFSP is wrapped in `RoleSeatFacade`
+  or `RlAgentTurnBasedBot`.
 - **Round-robin:** all 6 pairwise comparisons before the bracket.
 - **Bracket:** single elimination seeded by win rate vs random.
 

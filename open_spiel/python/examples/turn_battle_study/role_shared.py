@@ -172,14 +172,12 @@ class RoleSharedTeam:
     return self.facades[index]
 
   def lineup_for_matchup(self, for_team1: bool) -> List:
-    out: List[Optional[object]] = [None, None, None, None]
+    if self.selection is not None:
+      def_seat, atk_seat = self.selection
+      return _lineup_with_seats(self, def_seat, atk_seat, for_team1)
     if for_team1:
-      out[0] = RoleSeatFacade(0, self.defender, "defender")
-      out[1] = RoleSeatFacade(1, self.attacker, "attacker")
-    else:
-      out[2] = RoleSeatFacade(2, self.defender, "defender")
-      out[3] = RoleSeatFacade(3, self.attacker, "attacker")
-    return out
+      return _lineup_with_seats(self, 0, 1, for_team1=True)
+    return _lineup_with_seats(self, 2, 3, for_team1=False)
 
 
 def is_role_shared_team(agents) -> bool:
@@ -196,8 +194,17 @@ def _lineup_with_seats(
     attacker_seat: int,
     for_team1: bool,
 ) -> List:
-  del defender_seat, attacker_seat
-  return team.lineup_for_matchup(for_team1=for_team1)
+  """Deploy shared role nets on team slots using selected training facades."""
+  out: List[Optional[object]] = [None, None, None, None]
+  defender = team.facades[defender_seat].underlying
+  attacker = team.facades[attacker_seat].underlying
+  if for_team1:
+    out[0] = RoleSeatFacade(0, defender, "defender")
+    out[1] = RoleSeatFacade(1, attacker, "attacker")
+  else:
+    out[2] = RoleSeatFacade(2, defender, "defender")
+    out[3] = RoleSeatFacade(3, attacker, "attacker")
+  return out
 
 
 def select_best_role_seats(
@@ -230,7 +237,4 @@ def select_best_role_seats(
 def agents_for_matchup(agents, for_team1: bool) -> List:
   if not is_role_shared_team(agents):
     return agents
-  if agents.selection is None:
-    return agents.lineup_for_matchup(for_team1=for_team1)
-  def_seat, atk_seat = agents.selection
-  return _lineup_with_seats(agents, def_seat, atk_seat, for_team1=for_team1)
+  return agents.lineup_for_matchup(for_team1=for_team1)

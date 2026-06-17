@@ -30,10 +30,28 @@ from open_spiel.python.examples.turn_battle_study.game import (
     load_turn_based_game,
     make_rl_environment,
 )
-from open_spiel.python.examples.turn_battle_study.role_shared import agents_for_matchup
+from open_spiel.python.examples.turn_battle_study.role_shared import (
+    RoleSeatFacade,
+    agents_for_matchup,
+)
 from open_spiel.python.examples.turn_battle_study.models import MatchResult
 from open_spiel.python.pytorch import nfsp
 import pyspiel
+
+
+def _iter_nfsp_agents(agents: Optional[Sequence]) -> List[nfsp.NFSP]:
+  if not agents:
+    return []
+  found: List[nfsp.NFSP] = []
+  for agent in agents:
+    if agent is None:
+      continue
+    if isinstance(agent, nfsp.NFSP):
+      found.append(agent)
+    elif isinstance(agent, RoleSeatFacade) and isinstance(
+        agent.underlying, nfsp.NFSP):
+      found.append(agent.underlying)
+  return found
 
 
 def _uses_rl_stack(algo: str, agents: Optional[Sequence]) -> bool:
@@ -97,9 +115,8 @@ def play_training_episode_rl(
 def play_episode_rl(env, agents, is_evaluation=True):
   with contextlib.ExitStack() as stack:
     if is_evaluation:
-      for agent in agents:
-        if isinstance(agent, nfsp.NFSP):
-          stack.enter_context(agent.temp_mode_as(nfsp.MODE.AVERAGE_POLICY))
+      for agent in _iter_nfsp_agents(agents):
+        stack.enter_context(agent.temp_mode_as(nfsp.MODE.AVERAGE_POLICY))
     ts = env.reset()
     while not ts.last():
       actions = [a.step(ts, is_evaluation=is_evaluation).action for a in agents]
@@ -193,10 +210,7 @@ def evaluate_team_matchup(
       for player in range(bot_game.num_players())
   ]
 
-  nfsp_agents = []
-  for agents in (team1_agents, team2_agents):
-    if agents:
-      nfsp_agents.extend(a for a in agents if isinstance(a, nfsp.NFSP))
+  nfsp_agents = _iter_nfsp_agents(team1_agents) + _iter_nfsp_agents(team2_agents)
 
   with contextlib.ExitStack() as stack:
     for agent in nfsp_agents:

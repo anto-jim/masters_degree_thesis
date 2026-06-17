@@ -163,6 +163,9 @@ def _train_rl(algo, episodes, eval_every, eval_eps, rng):
     if ep > 0 and ep % eval_every == 0:
       win, loss = _fixed_role_win_rate(key, agents, eval_eps, rng)
       _log_checkpoint(log, ep, win, loss, key)
+  if not log.episodes or log.episodes[-1] != episodes:
+    win, loss = _fixed_role_win_rate(key, agents, eval_eps, rng)
+    _log_checkpoint(log, episodes, win, loss, key)
   return agents, log, None
 
 
@@ -196,4 +199,7 @@ def train_algorithm(
     if ep > 0 and ep % eval_every == 0:
       win, loss = _fixed_role_win_rate(key, agents, eval_eps, rng)
       _log_checkpoint(log, ep, win, loss, key)
+  if not log.episodes or log.episodes[-1] != episodes:
+    win, loss = _fixed_role_win_rate(key, agents, eval_eps, rng)
+    _log_checkpoint(log, episodes, win, loss, key)
   return agents, log, None

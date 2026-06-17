@@ -1,6 +1,7 @@
 # auxiliary inputs
 checkpoints
 checkpoint*
+!**/checkpoints.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
