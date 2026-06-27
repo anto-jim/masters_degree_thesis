@@ -3,6 +3,24 @@ checkpoints
 checkpoint*
 !**/checkpoints.py
 
+# Local toolchain bootstrap (apt debs extracted without sudo)
+.local/
+
+# Turn Battle — scratch/local experiment outputs
+# Canonical published results live in turn_battle_results/production_final/
+turn_battle_results/seed_*/
+turn_battle_results/eval_*.json
+turn_battle_results/*.log
+turn_battle_results/figures/
+turn_battle_results/aggregated_results.json
+turn_battle_results/thesis_aggregated_report.tex
+turn_battle_results/algorithm_comparison.json
+turn_battle_results/algorithm_comparison.csv
+turn_battle_results/experiment_config.json
+turn_battle_results/tournament_results.json
+turn_battle_results/training_*.csv
+turn_battle_results/turn_battle_report.tex
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
