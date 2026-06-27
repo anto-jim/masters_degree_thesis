@@ -38,7 +38,7 @@ from open_spiel.python.examples.turn_battle_study.game import (
     load_game,
     load_turn_based_game,
     make_rl_environment,
-    parse_game_params,
+    parse_num_turns,
 )
 from open_spiel.python.examples.turn_battle_study.role_shared import (
     RoleSharedTeam,
@@ -51,8 +51,7 @@ FLAGS = flags.FLAGS
 
 
 def _dcfr_turns() -> int:
-  params = parse_game_params(FLAGS.game_params)
-  return min(int(params.get("num_turns", 5)), FLAGS.dcfr_max_turns)
+  return parse_num_turns(dcfr_cap=True)
 
 
 def _fixed_role_win_rate(
@@ -97,17 +96,15 @@ def _deep_cfr_bots(solver, game, rng):
   return [DeepCFRPolicyBot(p, rng, solver) for p in range(game.num_players())]
 
 
-def train_deep_cfr(episodes, eval_every, eval_eps, rng):
-  print(
-      f"  backend: PyTorch DeepCFRSolver on {device_label(resolve_device(FLAGS.device))} "
-      f"(traversals={FLAGS.dcfr_traversals}, batch={FLAGS.dcfr_batch_size})"
-  )
+def build_deep_cfr_solver(rng: np.random.RandomState):
+  """Construct the DeepCFRSolver and its game; shared by training and checkpoint loading."""
+  del rng  # seed comes from FLAGS.seed
   game = load_turn_based_game(num_turns=_dcfr_turns())
   solver = deep_cfr.DeepCFRSolver(
       game,
       policy_network_layers=(128, 128),
       advantage_network_layers=(128, 128),
-      num_iterations=max(1, episodes),
+      num_iterations=1,
       num_traversals=FLAGS.dcfr_traversals,
       learning_rate=FLAGS.dcfr_learning_rate,
       batch_size_advantage=FLAGS.dcfr_batch_size,
@@ -118,6 +115,15 @@ def train_deep_cfr(episodes, eval_every, eval_eps, rng):
       device=_training_device(),
       seed=FLAGS.seed,
   )
+  return game, solver
+
+
+def train_deep_cfr(episodes, eval_every, eval_eps, rng):
+  print(
+      f"  backend: PyTorch DeepCFRSolver on {device_label(resolve_device(FLAGS.device))} "
+      f"(traversals={FLAGS.dcfr_traversals}, batch={FLAGS.dcfr_batch_size})"
+  )
+  game, solver = build_deep_cfr_solver(rng)
   log = TrainingLog(algorithm="deep_cfr")
 
   for it in range(1, episodes + 1):
@@ -169,14 +175,6 @@ def _train_rl(algo, episodes, eval_every, eval_eps, rng):
   return agents, log, None
 
 
-def train_nfsp(episodes, eval_every, eval_eps, rng):
-  return _train_rl("nfsp", episodes, eval_every, eval_eps, rng)
-
-
-def train_qpg(episodes, eval_every, eval_eps, rng):
-  return _train_rl("qpg", episodes, eval_every, eval_eps, rng)
-
-
 def train_algorithm(
     algo, episodes, eval_every, eval_eps, rng
 ) -> Tuple[Any, TrainingLog, Optional[Any]]:
@@ -185,10 +183,8 @@ def train_algorithm(
     return train_alphazero(episodes, eval_every, eval_eps, rng)
   if key == "deep_cfr":
     return train_deep_cfr(episodes, eval_every, eval_eps, rng)
-  if key == "nfsp":
-    return train_nfsp(episodes, eval_every, eval_eps, rng)
-  if key == "qpg":
-    return train_qpg(episodes, eval_every, eval_eps, rng)
+  if key in {"nfsp", "qpg"}:
+    return _train_rl(key, episodes, eval_every, eval_eps, rng)
 
   env = make_rl_environment()
   game = load_game()

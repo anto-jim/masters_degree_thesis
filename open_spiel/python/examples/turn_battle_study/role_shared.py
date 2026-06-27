@@ -6,7 +6,6 @@ import copy
 from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
-import torch
 
 from open_spiel.python import rl_environment
 from open_spiel.python.examples.turn_battle_study.config import (
@@ -182,10 +181,6 @@ class RoleSharedTeam:
 
 def is_role_shared_team(agents) -> bool:
   return isinstance(agents, RoleSharedTeam)
-
-
-def uses_role_shared_training(algo: str) -> bool:
-  return normalize_algorithm(algo) in ROLE_SHARED_ALGOS
 
 
 def _lineup_with_seats(

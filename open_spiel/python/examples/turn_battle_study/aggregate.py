@@ -10,6 +10,8 @@ from typing import Dict, List, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .report import _latex_preamble, _plot_seeding_bar, _save_figure
+
 
 def mean_ci(values: Sequence[float], z: float = 1.96) -> Dict[str, float]:
   """Normal-approximation CI for the mean of per-seed summary statistics."""
@@ -26,26 +28,6 @@ def mean_ci(values: Sequence[float], z: float = 1.96) -> Dict[str, float]:
       "ci_low": max(0.0, mean - margin),
       "ci_high": min(1.0, mean + margin),
       "std": std,
-  }
-
-
-def wilson_ci(
-    successes: float, trials: float, z: float = 1.96
-) -> Dict[str, float]:
-  """Wilson score interval for a binomial proportion."""
-  if trials <= 0:
-    return {"rate": 0.0, "ci_low": 0.0, "ci_high": 0.0}
-  p = successes / trials
-  z2 = z * z
-  denom = 1.0 + z2 / trials
-  centre = (p + z2 / (2.0 * trials)) / denom
-  margin = (
-      z * math.sqrt((p * (1.0 - p) + z2 / (4.0 * trials)) / trials) / denom
-  )
-  return {
-      "rate": p,
-      "ci_low": max(0.0, centre - margin),
-      "ci_high": min(1.0, centre + margin),
   }
 
 
@@ -160,21 +142,14 @@ def _plot_aggregated_figures(results_root: str, agg: Dict) -> None:
         [m - lo for m, lo in zip(means, lows)],
         [hi - m for m, hi in zip(means, highs)],
     ]
-    order = np.argsort(means)[::-1]
-    algos_ord = [algos[i] for i in order]
-    means_ord = [means[i] for i in order]
-    yerr_ord = [[yerr[0][i] for i in order], [yerr[1][i] for i in order]]
-
-    plt.figure(figsize=(8, 5))
-    plt.bar(algos_ord, means_ord, yerr=yerr_ord, capsize=4, color="steelblue")
-    plt.ylabel("Win rate vs random")
-    plt.title("Seeding scores across seeds (mean ± 95% CI)")
-    plt.xticks(rotation=35, ha="right")
-    plt.ylim(0, 1)
-    plt.tight_layout()
-    plt.savefig(os.path.join(fig_dir, "aggregated_seeding.pdf"))
-    plt.savefig(os.path.join(fig_dir, "aggregated_seeding.png"), dpi=150)
-    plt.close()
+    _plot_seeding_bar(
+        algos,
+        means,
+        fig_dir,
+        yerr=yerr,
+        name="aggregated_seeding",
+        title="Seeding scores across seeds (mean \u00b1 95% CI)",
+    )
 
   champ = agg.get("champion_frequency", {})
   if champ:
@@ -185,10 +160,7 @@ def _plot_aggregated_figures(results_root: str, agg: Dict) -> None:
     plt.ylabel("Bracket champion frequency")
     plt.title(f"Champion across {agg.get('n_seeds', 0)} seeds")
     plt.xticks(rotation=35, ha="right")
-    plt.tight_layout()
-    plt.savefig(os.path.join(fig_dir, "champion_frequency.pdf"))
-    plt.savefig(os.path.join(fig_dir, "champion_frequency.png"), dpi=150)
-    plt.close()
+    _save_figure(fig_dir, "champion_frequency")
 
 
 def generate_aggregated_latex_report(
@@ -201,17 +173,9 @@ def generate_aggregated_latex_report(
   rr = agg.get("round_robin", {})
   champ_freq = agg.get("champion_frequency", {})
 
-  lines = [
-      r"\documentclass[11pt]{article}",
-      r"\usepackage[margin=1in]{geometry}",
-      r"\usepackage{graphicx}",
-      r"\usepackage{booktabs}",
-      r"\usepackage{hyperref}",
-      r"\title{Turn Battle MARL Thesis --- Aggregated Results}",
-      r"\author{Multi-seed tournament study}",
-      r"\date{\today}",
-      r"\begin{document}",
-      r"\maketitle",
+  lines = _latex_preamble(
+      "Turn Battle MARL Thesis --- Aggregated Results", "Multi-seed tournament study"
+  ) + [
       r"\section{Experimental setup}",
       f"Each algorithm was trained for {agg.get('train_episodes', 'N')} episodes "
       f"across {agg.get('n_seeds', 0)} independent random seeds.",

@@ -16,7 +16,7 @@ import pathlib
 import shutil
 import subprocess
 import time
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from absl import flags
 import numpy as np
@@ -30,7 +30,7 @@ from open_spiel.python.examples.turn_battle_study.device import (
 )
 from open_spiel.python.examples.turn_battle_study.game import (
     load_turn_based_game,
-    parse_game_params,
+    parse_num_turns,
 )
 import pyspiel
 
@@ -44,8 +44,7 @@ _CHECKPOINT_ALIAS = -1
 def alphazero_team_game_string(num_turns: Optional[int] = None) -> str:
   if num_turns is None:
     try:
-      params = parse_game_params(FLAGS.game_params)
-      num_turns = int(params.get("num_turns", 5))
+      num_turns = parse_num_turns()
     except AttributeError:
       num_turns = 5
   return f"turn_battle_teams(num_turns={num_turns})"

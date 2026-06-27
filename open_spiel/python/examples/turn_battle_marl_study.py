@@ -32,7 +32,6 @@ from open_spiel.python.examples.turn_battle_study.aggregate import (
     generate_aggregated_latex_report,
 )
 from open_spiel.python.examples.turn_battle_study.config import (
-    ALL_ALGORITHMS,
     BOT_ALGOS,
     DEFAULT_EVAL_EVERY,
     DEFAULT_EVAL_EPISODES,

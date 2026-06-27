@@ -27,7 +27,10 @@ from open_spiel.python.examples.turn_battle_study.role_shared import (
     RoleSharedTeam,
     select_best_role_seats,
 )
-from open_spiel.python.examples.turn_battle_study.trainers import train_algorithm
+from open_spiel.python.examples.turn_battle_study.trainers import (
+    _fixed_role_win_rate,
+    train_algorithm,
+)
 
 
 def _pick_winner(algo1: str, algo2: str, stats: Dict[str, float]) -> str:
@@ -36,18 +39,6 @@ def _pick_winner(algo1: str, algo2: str, stats: Dict[str, float]) -> str:
   if stats["team2_win_rate"] > stats["team1_win_rate"]:
     return algo2
   return algo1 if stats["team1_avg_return"] >= stats["team2_avg_return"] else algo2
-
-
-def _seed_score(
-    algo: str,
-    agents: object,
-    eval_episodes: int,
-    rng: np.random.RandomState,
-) -> float:
-  """Win rate vs random on team1 (defenders P0/P2, attackers P1/P3 in trained slots)."""
-  return evaluate_team_matchup(
-      algo, "random", eval_episodes, rng, team1_agents=agents).summary()[
-          "team1_win_rate"]
 
 
 def _finalize_rl_agents(
@@ -78,35 +69,6 @@ def _maybe_finalize_rl_agents(
   return agents
 
 
-def load_all(
-    algorithms: Sequence[str],
-    output_dir: str,
-    eval_episodes: int,
-    rng: np.random.RandomState,
-) -> Tuple[Dict[str, object], Dict[str, float]]:
-  """Load trained checkpoints and compute seeding scores (no retraining)."""
-  trained: Dict[str, object] = {}
-  seeds: Dict[str, float] = {}
-
-  for algo in algorithms:
-    key = normalize_algorithm(algo)
-    print(f"=== Loading {key} from checkpoint ===")
-    if key in TRAINABLE_ALGOS:
-      ckpt_dir = f"{output_dir}/checkpoints/{key}"
-      agents = load_trained_agents(key, ckpt_dir, rng)
-      agents = _maybe_finalize_rl_agents(key, agents, eval_episodes, rng)
-      trained[key] = agents
-      seeds[key] = _seed_score(key, agents, eval_episodes, rng)
-    elif key in BOT_ALGOS:
-      trained[key] = None
-      stats = evaluate_team_matchup(key, "random", eval_episodes, rng).summary()
-      seeds[key] = stats["team1_win_rate"]
-    else:
-      continue
-    print(f"  seed score vs random: {seeds[key]:.3f}")
-  return trained, seeds
-
-
 def _retrain_algorithm_set(
     retrain_algorithms: Optional[Sequence[str]],
 ) -> Optional[Set[str]]:
@@ -128,7 +90,7 @@ def _load_one_algorithm(
         f"Checkpoint required for {key} but missing: {ckpt_dir}")
   agents = load_trained_agents(key, ckpt_dir, rng)
   agents = _maybe_finalize_rl_agents(key, agents, eval_episodes, rng)
-  seed_score = _seed_score(key, agents, eval_episodes, rng)
+  seed_score = _fixed_role_win_rate(key, agents, eval_episodes, rng)[0]
   print(f"  seed score vs random: {seed_score:.3f}")
   return agents, seed_score
 
@@ -151,9 +113,53 @@ def _train_one_algorithm(
     ckpt_dir = f"{output_dir}/checkpoints/{key}"
     save_trained_checkpoint(key, agents, artifact, ckpt_dir)
     print(f"  checkpoint saved: {ckpt_dir}")
-  seed_score = _seed_score(key, agents, eval_episodes, rng)
+  seed_score = _fixed_role_win_rate(key, agents, eval_episodes, rng)[0]
   print(f"  seed score vs random: {seed_score:.3f}")
   return agents, seed_score
+
+
+def _populate_trained_dict(
+    algorithms: Sequence[str],
+    output_dir: str,
+    eval_episodes: int,
+    rng: np.random.RandomState,
+    should_train,
+    train_episodes: int = 0,
+    eval_every: int = 0,
+) -> Tuple[Dict[str, object], Dict[str, float]]:
+  """Shared loop for load_all and train_all: bots handled once, train/load decided by predicate."""
+  trained: Dict[str, object] = {}
+  seeds: Dict[str, float] = {}
+  for algo in algorithms:
+    key = normalize_algorithm(algo)
+    if key in TRAINABLE_ALGOS:
+      if should_train(key):
+        agents, seed_score = _train_one_algorithm(
+            key, train_episodes, eval_every, eval_episodes, rng, output_dir)
+      else:
+        agents, seed_score = _load_one_algorithm(
+            key, output_dir, eval_episodes, rng)
+      trained[key] = agents
+      seeds[key] = seed_score
+    elif key in BOT_ALGOS:
+      trained[key] = None
+      stats = evaluate_team_matchup(key, "random", eval_episodes, rng).summary()
+      seeds[key] = stats["team1_win_rate"]
+      print(f"  seed score vs random: {seeds[key]:.3f}")
+    else:
+      continue
+  return trained, seeds
+
+
+def load_all(
+    algorithms: Sequence[str],
+    output_dir: str,
+    eval_episodes: int,
+    rng: np.random.RandomState,
+) -> Tuple[Dict[str, object], Dict[str, float]]:
+  """Load trained checkpoints and compute seeding scores (no retraining)."""
+  return _populate_trained_dict(
+      algorithms, output_dir, eval_episodes, rng, should_train=lambda _: False)
 
 
 def train_all(
@@ -165,29 +171,11 @@ def train_all(
     output_dir: str,
     retrain_algorithms: Optional[Sequence[str]] = None,
 ) -> Tuple[Dict[str, object], Dict[str, float]]:
-  trained: Dict[str, object] = {}
-  seeds: Dict[str, float] = {}
   retrain_only = _retrain_algorithm_set(retrain_algorithms)
-
-  for algo in algorithms:
-    key = normalize_algorithm(algo)
-    if key in TRAINABLE_ALGOS:
-      if retrain_only is not None and key not in retrain_only:
-        agents, seed_score = _load_one_algorithm(
-            key, output_dir, eval_episodes, rng)
-      else:
-        agents, seed_score = _train_one_algorithm(
-            key, train_episodes, eval_every, eval_episodes, rng, output_dir)
-      trained[key] = agents
-      seeds[key] = seed_score
-    elif key in BOT_ALGOS:
-      trained[key] = None
-      stats = evaluate_team_matchup(key, "random", eval_episodes, rng).summary()
-      seeds[key] = stats["team1_win_rate"]
-      print(f"  seed score vs random: {seeds[key]:.3f}")
-    else:
-      continue
-  return trained, seeds
+  should_train = lambda key: retrain_only is None or key in retrain_only
+  return _populate_trained_dict(
+      algorithms, output_dir, eval_episodes, rng, should_train=should_train,
+      train_episodes=train_episodes, eval_every=eval_every)
 
 
 def run_bracket(

@@ -15,22 +15,19 @@ from open_spiel.python.examples.turn_battle_study.agents import (
     create_rl_agents,
 )
 from open_spiel.python.examples.turn_battle_study.az_cpp import AlphaZeroCpp
-from open_spiel.python.examples.turn_battle_study.bots import (
-    DeepCFRPolicyBot,
-    bots_to_adapters,
-)
+from open_spiel.python.examples.turn_battle_study.bots import bots_to_adapters
 from open_spiel.python.examples.turn_battle_study.config import (
     ROLE_SHARED_ALGOS,
     normalize_algorithm,
 )
-from open_spiel.python.examples.turn_battle_study.game import (
-    load_turn_based_game,
-    make_rl_environment,
-)
+from open_spiel.python.examples.turn_battle_study.game import make_rl_environment
 from open_spiel.python.examples.turn_battle_study.role_shared import (
     RoleSharedTeam,
 )
-from open_spiel.python.examples.turn_battle_study.trainers import _dcfr_turns
+from open_spiel.python.examples.turn_battle_study.trainers import (
+    _deep_cfr_bots,
+    build_deep_cfr_solver,
+)
 from open_spiel.python.pytorch import deep_cfr
 from open_spiel.python.pytorch import nfsp
 from open_spiel.python.pytorch import policy_gradient
@@ -86,7 +83,7 @@ def _load_role_agent(agent, checkpoint_dir: pathlib.Path) -> None:
     raise TypeError(f"Unsupported role agent type: {type(agent)}")
 
 
-def _save_role_shared(algo: str, agents: RoleSharedTeam, checkpoint_dir: str) -> None:
+def _save_role_shared(agents: RoleSharedTeam, checkpoint_dir: str) -> None:
   root = pathlib.Path(checkpoint_dir)
   root.mkdir(parents=True, exist_ok=True)
   _save_role_agent(agents.defender, root / "role_defender")
@@ -139,27 +136,7 @@ def _save_deep_cfr(solver: deep_cfr.DeepCFRSolver, checkpoint_dir: str) -> None:
 
 
 def _load_deep_cfr(checkpoint_dir: str, rng: np.random.RandomState):
-  from absl import flags
-
-  from open_spiel.python.examples.turn_battle_study.device import resolve_device
-
-  FLAGS = flags.FLAGS
-  game = load_turn_based_game(num_turns=_dcfr_turns())
-  solver = deep_cfr.DeepCFRSolver(
-      game,
-      policy_network_layers=(128, 128),
-      advantage_network_layers=(128, 128),
-      num_iterations=1,
-      num_traversals=FLAGS.dcfr_traversals,
-      learning_rate=FLAGS.dcfr_learning_rate,
-      batch_size_advantage=FLAGS.dcfr_batch_size,
-      batch_size_strategy=FLAGS.dcfr_batch_size,
-      policy_network_train_steps=FLAGS.dcfr_policy_steps,
-      advantage_network_train_steps=FLAGS.dcfr_advantage_steps,
-      reinitialize_advantage_networks=FLAGS.dcfr_reinitialize_advantage_networks,
-      device=str(resolve_device(FLAGS.device)),
-      seed=FLAGS.seed,
-  )
+  game, solver = build_deep_cfr_solver(rng)
   data = torch.load(
       pathlib.Path(checkpoint_dir) / "model.pt",
       weights_only=True,
@@ -169,11 +146,7 @@ def _load_deep_cfr(checkpoint_dir: str, rng: np.random.RandomState):
   solver._policy_network.load_state_dict(data["policy_network"])
   for net, state in zip(solver._advantage_networks, data["advantage_networks"]):
     net.load_state_dict(state)
-  bots = [
-      DeepCFRPolicyBot(p, rng, solver)
-      for p in range(game.num_players())
-  ]
-  return bots_to_adapters(bots)
+  return bots_to_adapters(_deep_cfr_bots(solver, game, rng))
 
 
 def save_trained_checkpoint(
@@ -199,7 +172,7 @@ def save_trained_checkpoint(
   if key in ROLE_SHARED_ALGOS:
     if not isinstance(agents, RoleSharedTeam):
       raise TypeError(f"{key} expects RoleSharedTeam agents.")
-    _save_role_shared(key, agents, checkpoint_dir)
+    _save_role_shared(agents, checkpoint_dir)
     return
 
   root = pathlib.Path(checkpoint_dir)

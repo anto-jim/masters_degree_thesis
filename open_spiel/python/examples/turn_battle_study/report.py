@@ -12,6 +12,28 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def _save_figure(fig_dir: str, name: str) -> None:
+  plt.tight_layout()
+  plt.savefig(os.path.join(fig_dir, f"{name}.pdf"))
+  plt.savefig(os.path.join(fig_dir, f"{name}.png"), dpi=150)
+  plt.close()
+
+
+def _latex_preamble(title: str, author: str = "") -> List[str]:
+  return [
+      r"\documentclass[11pt]{article}",
+      r"\usepackage[margin=1in]{geometry}",
+      r"\usepackage{graphicx}",
+      r"\usepackage{booktabs}",
+      r"\usepackage{hyperref}",
+      rf"\title{{{title}}}",
+      rf"\author{{{author}}}",
+      r"\date{\today}",
+      r"\begin{document}",
+      r"\maketitle",
+  ]
+
+
 def _read_training_curves(output_dir: str) -> Dict[str, Dict[str, List[float]]]:
   curves: Dict[str, Dict[str, List[float]]] = {}
   for path in glob.glob(os.path.join(output_dir, "training_*.csv")):
@@ -38,29 +60,32 @@ def _plot_training_curves(curves: Dict[str, Dict[str, List[float]]], fig_dir: st
   plt.title("Turn Battle training curves")
   plt.legend(fontsize=8)
   plt.grid(True, alpha=0.3)
-  plt.tight_layout()
-  plt.savefig(os.path.join(fig_dir, "training_curves.pdf"))
-  plt.savefig(os.path.join(fig_dir, "training_curves.png"), dpi=150)
-  plt.close()
+  _save_figure(fig_dir, "training_curves")
 
 
-def _plot_seeding(seeds: Dict[str, float], fig_dir: str):
-  if not seeds:
-    return
-  algos = list(seeds.keys())
-  vals = [seeds[a] for a in algos]
-  order = np.argsort(vals)[::-1]
-  algos = [algos[i] for i in order]
-  vals = [vals[i] for i in order]
+def _plot_seeding_bar(
+    algos: List[str],
+    values: List[float],
+    fig_dir: str,
+    yerr=None,
+    name: str = "seeding",
+    title: str = "Seeding results before bracket",
+) -> None:
+  order = np.argsort(values)[::-1]
+  algos_ord = [algos[i] for i in order]
+  vals_ord = [values[i] for i in order]
+  bar_kwargs: dict = {"color": "steelblue"}
+  if yerr is not None:
+    bar_kwargs["yerr"] = [[yerr[0][i] for i in order], [yerr[1][i] for i in order]]
+    bar_kwargs["capsize"] = 4
   plt.figure(figsize=(8, 5))
-  plt.bar(algos, vals, color="steelblue")
+  plt.bar(algos_ord, vals_ord, **bar_kwargs)
   plt.xticks(rotation=35, ha="right")
   plt.ylabel("Win rate vs random")
-  plt.title("Seeding results before bracket")
-  plt.tight_layout()
-  plt.savefig(os.path.join(fig_dir, "seeding.pdf"))
-  plt.savefig(os.path.join(fig_dir, "seeding.png"), dpi=150)
-  plt.close()
+  plt.title(title)
+  if yerr is not None:
+    plt.ylim(0, 1)
+  _save_figure(fig_dir, name)
 
 
 def _plot_round_robin(matrix: Dict[str, Dict[str, float]], algos: List[str], fig_dir: str):
@@ -79,10 +104,7 @@ def _plot_round_robin(matrix: Dict[str, Dict[str, float]], algos: List[str], fig
     for j in range(len(algos)):
       if i != j:
         plt.text(j, i, f"{data[i, j]:.2f}", ha="center", va="center", fontsize=8)
-  plt.tight_layout()
-  plt.savefig(os.path.join(fig_dir, "round_robin.pdf"))
-  plt.savefig(os.path.join(fig_dir, "round_robin.png"), dpi=150)
-  plt.close()
+  _save_figure(fig_dir, "round_robin")
 
 
 def _plot_bracket(bracket: List[Dict], champion: str, fig_dir: str):
@@ -98,10 +120,7 @@ def _plot_bracket(bracket: List[Dict], champion: str, fig_dir: str):
   plt.yticks(y, labels, fontsize=8)
   plt.xlabel("Team-1 win rate")
   plt.title(f"Bracket matchups (champion: {champion})")
-  plt.tight_layout()
-  plt.savefig(os.path.join(fig_dir, "bracket.pdf"))
-  plt.savefig(os.path.join(fig_dir, "bracket.png"), dpi=150)
-  plt.close()
+  _save_figure(fig_dir, "bracket")
 
 
 def generate_latex_report(output_dir: str) -> str:
@@ -124,22 +143,15 @@ def generate_latex_report(output_dir: str) -> str:
   algos = tournament.get("algorithms", list(seeds.keys()))
 
   _plot_training_curves(curves, fig_dir)
-  _plot_seeding(seeds, fig_dir)
+  if seeds:
+    _plot_seeding_bar(list(seeds.keys()), [seeds[a] for a in seeds], fig_dir)
   _plot_round_robin(rr_matrix, algos, fig_dir)
   _plot_bracket(bracket, champion, fig_dir)
 
   tex_path = os.path.join(output_dir, "turn_battle_report.tex")
-  lines = [
-      r"\documentclass[11pt]{article}",
-      r"\usepackage[margin=1in]{geometry}",
-      r"\usepackage{graphicx}",
-      r"\usepackage{booktabs}",
-      r"\usepackage{hyperref}",
-      r"\title{Turn Battle MARL Study Report}",
-      r"\author{OpenSpiel Experiment Pipeline}",
-      r"\date{\today}",
-      r"\begin{document}",
-      r"\maketitle",
+  lines = _latex_preamble(
+      "Turn Battle MARL Study Report", "OpenSpiel Experiment Pipeline"
+  ) + [
       r"\section{Overview}",
       "This report summarizes training, round-robin, and bracket-tournament "
       r"results on the \texttt{turn\_battle} OpenSpiel environment "

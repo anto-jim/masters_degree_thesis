@@ -10,6 +10,7 @@ import numpy as np
 from open_spiel.python import rl_environment
 from open_spiel.python.bots import uniform_random
 from open_spiel.python.examples.turn_battle_study.config import (
+    DEFENDER_SEATS,
     EVAL_FALLBACK_ALGOS,
     normalize_algorithm,
 )
@@ -21,7 +22,7 @@ FLAGS = flags.FLAGS
 
 
 class HeuristicBattleBot(pyspiel.Bot):
-  DEFENDERS = frozenset({0, 2})
+  DEFENDERS = frozenset(DEFENDER_SEATS)
 
   def __init__(self, player_id: int, rng: np.random.RandomState):
     super().__init__()
@@ -172,17 +173,6 @@ class DeepCFRPolicyBot(pyspiel.Bot):
     if total <= 0:
       return self._rng.choice(legal)
     return self._rng.choice(legal, p=weights / total)
-
-
-def deep_cfr_bots(
-    solver: deep_cfr.DeepCFRSolver,
-    rng: np.random.RandomState,
-    use_policy_network: bool = True,
-) -> List[pyspiel.Bot]:
-  # DeepCFRSolver.action_probabilities uses the trained average strategy
-  # network; the flag is kept only for call-site API compatibility.
-  del use_policy_network
-  return [DeepCFRPolicyBot(p, rng, solver) for p in range(solver._num_players)]
 
 
 def bots_to_adapters(bots: Sequence[pyspiel.Bot]) -> List[BotRlAdapter]:

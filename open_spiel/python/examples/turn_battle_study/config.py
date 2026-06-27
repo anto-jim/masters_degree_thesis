@@ -19,8 +19,6 @@ TURN_BASED_TRAINED_ALGOS = frozenset({"alphazero", "deep_cfr"})
 BOT_ALGOS = frozenset({"random", "mcts", "heuristic"})
 EVAL_FALLBACK_ALGOS = {"alphazero": "mcts", "deep_cfr": "heuristic"}
 
-ALL_ALGORITHMS = sorted(TRAINABLE_ALGOS | BOT_ALGOS)
-
 # Master's thesis comparison set (4 paradigms).
 THESIS_ALGORITHMS = ["alphazero", "deep_cfr", "nfsp", "qpg"]
 

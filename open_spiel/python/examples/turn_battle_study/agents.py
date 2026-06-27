@@ -14,7 +14,7 @@ from open_spiel.python.examples.turn_battle_study.config import (
     normalize_algorithm,
 )
 from open_spiel.python.examples.turn_battle_study.device import resolve_device
-from open_spiel.python.examples.turn_battle_study.game import parse_game_params
+from open_spiel.python.examples.turn_battle_study.game import parse_num_turns
 from open_spiel.python.examples.turn_battle_study.role_shared import (
     DEFENDER_CANON,
     ATTACKER_CANON,
@@ -29,7 +29,7 @@ FLAGS = flags.FLAGS
 
 
 def _num_turns() -> int:
-  return int(parse_game_params(FLAGS.game_params).get("num_turns", 5))
+  return parse_num_turns()
 
 
 def create_single_rl_agent(
@@ -97,26 +97,18 @@ def create_rl_agents(algorithm: str, env: rl_environment.Environment) -> List:
   if algo in ROLE_SHARED_ALGOS:
     return create_role_shared_rl_agents(algo, env)
 
-  device = str(resolve_device(FLAGS.device))
-  num_actions = env.action_spec()["num_actions"]
   info_state_size = env.observation_spec()["info_state"][0]
 
   if algo == "q_learning":
     schedule = rl_tools.LinearSchedule(0.3, 0.05, FLAGS.train_episodes)
     return [
         tabular_qlearner.QLearner(
-            player_id=p, num_actions=num_actions, step_size=0.2,
-            epsilon_schedule=schedule, discount_factor=1.0)
+            player_id=p, num_actions=env.action_spec()["num_actions"],
+            step_size=0.2, epsilon_schedule=schedule, discount_factor=1.0)
         for p in range(env.num_players)
     ]
 
-  if algo in {"qpg", "a2c", "rpg"}:
-    return [
-        create_single_rl_agent(algo, env, p, info_state_size)
-        for p in range(env.num_players)
-    ]
-
-  if algo == "nfsp":
+  if algo in {"qpg", "a2c", "rpg", "nfsp"}:
     return [
         create_single_rl_agent(algo, env, p, info_state_size)
         for p in range(env.num_players)

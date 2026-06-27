@@ -31,6 +31,15 @@ def parse_game_params(params_str: str) -> Dict[str, object]:
   return result
 
 
+def parse_num_turns(dcfr_cap: bool = False) -> int:
+  """Return num_turns from game_params, optionally capped by dcfr_max_turns."""
+  params = parse_game_params(FLAGS.game_params)
+  num_turns = int(params.get("num_turns", 5))
+  if dcfr_cap:
+    return min(num_turns, FLAGS.dcfr_max_turns)
+  return num_turns
+
+
 def inner_game_string() -> str:
   params = parse_game_params(FLAGS.game_params)
   if not params:
