@@ -11,8 +11,11 @@
   "bracket_size": 4,
   "round_robin": true,
   "save_checkpoints": true,
-  "seeds": [42, 43, 44, 45, 46],
+  "seeds": [42, 43, 44],
   "results_root": "turn_battle_results/production_final",
+  "retrain_algorithms": ["nfsp", "qpg"],
+  "az_cpp_actors": 1,
+  "az_cpp_evaluators": 0,
   "train_bot_mix": 0.5,
   "train_bot_opponent": "mixed",
   "device": "auto"

@@ -12,6 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// turn_battle.h — Four-player two-team simultaneous-move battle game.
+//
+// The game simulates a turn-based fight between two teams of two:
+//   Team 0: players 0 (Defender) and 1 (Attacker)
+//   Team 1: players 2 (Defender) and 3 (Attacker)
+//
+// Each round every living player selects one of up to five actions
+// (attack enemy defender, attack enemy attacker, self-defense, special move,
+// or the mandatory "dead" no-op).  All actions are resolved simultaneously.
+// The game is zero-sum: the team with more total HP at termination wins (+1/-1);
+// a draw yields 0 for everyone.
+//
+// Key types defined here:
+//   RoleTargets        — pre-computed target indices for a given player's role
+//   TurnBattleState    — game state holding HP, special-move flags, history
+//   TurnBattleGame     — game descriptor and observer factory
+
 #ifndef OPEN_SPIEL_GAMES_TURN_BATTLE_H_
 #define OPEN_SPIEL_GAMES_TURN_BATTLE_H_
 
@@ -39,17 +56,23 @@ inline constexpr Action kSelfDefense = 2;
 inline constexpr Action kSpecialMove = 3;
 inline constexpr Action kDeadPlayerAction = 4;
 
+// Player-role descriptor: pre-computed team and target indices for one player.
+// Avoids repeated role-logic branches inside hot loops.
 struct RoleTargets {
-  bool is_defender;
-  int teammate;
-  int enemy_defender;
-  int enemy_attacker;
+  bool is_defender;    // true for players 0 and 2
+  int teammate;        // index of the player on the same team
+  int enemy_defender;  // index of the opposing team's Defender
+  int enemy_attacker;  // index of the opposing team's Attacker
 };
 
+// Returns the RoleTargets descriptor for the given player (0–3).
 RoleTargets RoleTargetsFor(Player player);
 
 class TurnBattleObserver;
 
+// Concrete state for a TurnBattle episode.
+// Tracks per-player HP, one-shot special-move availability, the full action
+// history, and the winner set populated at termination.
 class TurnBattleState : public SimMoveState {
  public:
   explicit TurnBattleState(std::shared_ptr<const Game> game, int num_turns);
@@ -61,11 +84,19 @@ class TurnBattleState : public SimMoveState {
   std::vector<double> Returns() const override;
   std::string InformationStateString(Player player) const override;
   std::string ObservationString(Player player) const override;
+  // Writes the full-recall information-state tensor for `player` into `values`.
+  // Layout: [current_turn | HP×4 | special×4 | action_history (flat)].
   void InformationStateTensor(Player player,
                               absl::Span<float> values) const override;
+  // Writes the current-turn observation tensor for `player` into `values`.
+  // Layout: [current_turn | HP×4 | special×4 | private×2] (shape 11; no history).
   void ObservationTensor(Player player,
                          absl::Span<float> values) const override;
   std::unique_ptr<State> Clone() const override;
+  // Returns the set of legal actions for `player`.
+  // Dead players have exactly one legal action (kDeadPlayerAction).
+  // Living players may attack either living enemy, defend, or use their
+  // one-shot special move (if unused and the move is applicable to their role).
   std::vector<Action> LegalActions(Player player) const override;
 
   int CurrentTurn() const { return current_turn_; }
@@ -80,7 +111,10 @@ class TurnBattleState : public SimMoveState {
   }
 
  protected:
+  // Always asserts false: simultaneous-move games must use DoApplyActions.
   void DoApplyAction(Action action_id) override;
+  // Records actions, resolves the current turn, advances the turn counter,
+  // and calls UpdateWinners() when the game reaches a terminal state.
   void DoApplyActions(const std::vector<Action>& actions) override;
 
  private:
@@ -99,6 +133,10 @@ class TurnBattleState : public SimMoveState {
   std::vector<std::vector<Action>> actions_history_;
 };
 
+// Game descriptor for TurnBattle.
+// Owns the two shared Observer instances used by all states to serialise their
+// tensors (default_observer_ for observations, info_state_observer_ for
+// information-state tensors with full history).
 class TurnBattleGame : public SimMoveGame {
  public:
   explicit TurnBattleGame(const GameParameters& params);

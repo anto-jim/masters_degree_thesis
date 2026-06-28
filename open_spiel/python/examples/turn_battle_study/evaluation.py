@@ -40,6 +40,17 @@ import pyspiel
 
 
 def _iter_nfsp_agents(agents: Optional[Sequence]) -> List[nfsp.NFSP]:
+  """Collect every NFSP instance from a mixed agent sequence.
+
+  Handles both bare ``nfsp.NFSP`` objects and ``RoleSeatFacade`` wrappers
+  whose underlying agent is an NFSP instance.
+
+  Args:
+    agents: Sequence that may contain RL agents, bot adapters, or None.
+
+  Returns:
+    A flat list of every NFSP instance found.
+  """
   if not agents:
     return []
   found: List[nfsp.NFSP] = []
@@ -55,6 +66,18 @@ def _iter_nfsp_agents(agents: Optional[Sequence]) -> List[nfsp.NFSP]:
 
 
 def _uses_rl_stack(algo: str, agents: Optional[Sequence]) -> bool:
+  """Return True when *algo* should be evaluated via the shared-state RL stack.
+
+  An algorithm uses the RL stack when it is trainable, not a turn-based-trained
+  algorithm, and trained agents have actually been provided.
+
+  Args:
+    algo: Normalised algorithm key.
+    agents: Agent sequence for the team, or None if not available.
+
+  Returns:
+    True if the RL environment episode runner should handle this algorithm.
+  """
   return (
       algo in TRAINABLE_ALGOS
       and algo not in TURN_BASED_TRAINED_ALGOS
@@ -68,6 +91,22 @@ def _uses_turn_based_eval(
     team1_agents: Optional[Sequence],
     team2_agents: Optional[Sequence],
 ) -> bool:
+  """Decide whether evaluation should use the turn-based pyspiel bot API.
+
+  Returns True when any of the following hold:
+  - Either side was trained with a turn-based algorithm (e.g. AlphaZero).
+  - Either side uses MCTS (which requires the bot API).
+  - One side uses the RL stack while the other does not (mixed evaluation path).
+
+  Args:
+    t1: Normalised algorithm key for team 1.
+    t2: Normalised algorithm key for team 2.
+    team1_agents: Trained agents for team 1, or None.
+    team2_agents: Trained agents for team 2, or None.
+
+  Returns:
+    True if the turn-based bot episode runner should be used.
+  """
   if t1 in TURN_BASED_TRAINED_ALGOS or t2 in TURN_BASED_TRAINED_ALGOS:
     return True
   if effective_bot_algorithm(t1) == "mcts" or effective_bot_algorithm(t2) == "mcts":
@@ -80,6 +119,14 @@ def _uses_turn_based_eval(
 
 
 def _pick_bot_opponent(rng: np.random.RandomState) -> str:
+  """Sample a bot opponent algorithm according to the training flag.
+
+  Args:
+    rng: Random state used to break ties when the flag is ``"mixed"``.
+
+  Returns:
+    One of ``"random"`` or ``"heuristic"`` (or whatever the flag is set to).
+  """
   choice = FLAGS.train_bot_opponent
   if choice == "mixed":
     return rng.choice(["random", "heuristic"])
@@ -113,6 +160,20 @@ def play_training_episode_rl(
 
 
 def play_episode_rl(env, agents, is_evaluation=True):
+  """Run one episode through the shared-state RL environment.
+
+  During evaluation, every NFSP agent is placed in average-policy mode via a
+  context manager so that their behaviour reflects the learned Nash strategy.
+
+  Args:
+    env: OpenSpiel RL environment wrapping the game.
+    agents: One agent per player seat; each must implement ``step()``.
+    is_evaluation: If True, agents act greedily and terminal ``step()`` is
+      skipped (no learning update). Defaults to True.
+
+  Returns:
+    A list of terminal rewards, one per player.
+  """
   with contextlib.ExitStack() as stack:
     if is_evaluation:
       for agent in _iter_nfsp_agents(agents):
@@ -128,6 +189,16 @@ def play_episode_rl(env, agents, is_evaluation=True):
 
 
 def play_episode_bots(game, bots, rng):
+  """Run one episode using the pyspiel bot API.
+
+  Args:
+    game: A pyspiel ``Game`` instance from which the initial state is drawn.
+    bots: One ``pyspiel.Bot`` per player seat.
+    rng: Random state forwarded to ``evaluate_bots`` for stochastic decisions.
+
+  Returns:
+    A list of terminal returns, one per player.
+  """
   return list(evaluate_bots.evaluate_bots(game.new_initial_state(), bots, rng))
 
 
@@ -140,6 +211,23 @@ def _player_agent(
     game,
     rng,
 ) -> object:
+  """Return the RL-compatible agent for *player* in a shared-state episode.
+
+  If the player's team uses the RL stack, the pre-trained agent is returned
+  directly. Otherwise a ``BotRlAdapter`` wrapping a fresh pyspiel bot is used.
+
+  Args:
+    player: Seat index of the player.
+    t1_algo: Algorithm key for team 1 (may include ``"mcts:"`` prefix).
+    t2_algo: Algorithm key for team 2.
+    t1_agents: Trained agents for team 1, or None.
+    t2_agents: Trained agents for team 2, or None.
+    game: A pyspiel ``Game`` instance used to instantiate bot opponents.
+    rng: Random state forwarded to bot constructors.
+
+  Returns:
+    An agent object compatible with the ``play_episode_rl`` loop.
+  """
   if player in TEAM1_PLAYERS:
     if _uses_rl_stack(normalize_algorithm(t1_algo), t1_agents):
       return t1_agents[player]
@@ -162,6 +250,27 @@ def _turn_based_bot_for_player(
     bot_game,
     rng,
 ) -> pyspiel.Bot:
+  """Return the pyspiel.Bot for *player* in a turn-based evaluation episode.
+
+  Selection priority per player:
+  1. A turn-based-trained algorithm's stored ``._bot`` (e.g. AlphaZero).
+  2. An ``RlAgentTurnBasedBot`` wrapping a trained RL agent.
+  3. A fresh pyspiel bot constructed for MCTS or untrained bot algorithms.
+
+  Args:
+    player: Seat index of the player.
+    t1: Normalised algorithm key for team 1.
+    t2: Normalised algorithm key for team 2.
+    team1_algo: Original (possibly prefixed) algorithm string for team 1.
+    team2_algo: Original (possibly prefixed) algorithm string for team 2.
+    team1_agents: Trained agents for team 1, or None.
+    team2_agents: Trained agents for team 2, or None.
+    bot_game: The turn-based pyspiel ``Game`` the bots will play.
+    rng: Random state forwarded to bot constructors.
+
+  Returns:
+    A ``pyspiel.Bot`` instance for the given player seat.
+  """
   if player in TEAM1_PLAYERS:
     if t1 in TURN_BASED_TRAINED_ALGOS and team1_agents:
       return team1_agents[player]._bot
@@ -180,6 +289,23 @@ def _turn_based_bot_for_player(
 def evaluate_team_matchup(
     team1_algo, team2_algo, num_episodes, rng,
     team1_agents=None, team2_agents=None) -> MatchResult:
+  """Evaluate a head-to-head matchup between two algorithm teams.
+
+  Automatically selects the evaluation path (shared-state RL environment or
+  turn-based bot API) based on the algorithm types and available agents.
+  NFSP agents are put into average-policy mode for the entire evaluation block.
+
+  Args:
+    team1_algo: Algorithm string for team 1 (e.g. ``"nfsp"`` or ``"mcts:200"``).
+    team2_algo: Algorithm string for team 2.
+    num_episodes: Number of episodes to play.
+    rng: Random state for stochastic decisions and bot construction.
+    team1_agents: Trained agents for team 1, or None for bot-only algorithms.
+    team2_agents: Trained agents for team 2, or None for bot-only algorithms.
+
+  Returns:
+    A ``MatchResult`` populated with per-episode outcomes.
+  """
   if team1_agents is not None:
     team1_agents = agents_for_matchup(team1_agents, for_team1=True)
   if team2_agents is not None:

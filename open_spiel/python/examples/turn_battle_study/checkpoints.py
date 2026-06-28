@@ -37,6 +37,12 @@ _LEGACY_PLAYER_PREFIX = "player_"
 
 
 def _save_nfsp(agent: nfsp.NFSP, checkpoint_dir: pathlib.Path) -> None:
+  """Persist an NFSP agent's reservoir network and inner RL agent to disk.
+
+  Args:
+    agent: The NFSP agent to checkpoint.
+    checkpoint_dir: Directory that will receive 'rl_inner/' and 'nfsp.pt'.
+  """
   checkpoint_dir.mkdir(parents=True, exist_ok=True)
   agent._rl_agent.save(checkpoint_dir / "rl_inner", save_optimiser=True)
   torch.save(
@@ -51,6 +57,12 @@ def _save_nfsp(agent: nfsp.NFSP, checkpoint_dir: pathlib.Path) -> None:
 
 
 def _load_nfsp(agent: nfsp.NFSP, checkpoint_dir: pathlib.Path) -> None:
+  """Restore an NFSP agent's weights from a previously saved checkpoint.
+
+  Args:
+    agent: The NFSP agent to restore into (must match the saved architecture).
+    checkpoint_dir: Directory containing 'rl_inner/' and 'nfsp.pt'.
+  """
   agent._rl_agent.load(checkpoint_dir / "rl_inner", load_optimiser=True)
   data = torch.load(
       checkpoint_dir / "nfsp.pt",
@@ -65,6 +77,15 @@ def _load_nfsp(agent: nfsp.NFSP, checkpoint_dir: pathlib.Path) -> None:
 
 
 def _save_role_agent(agent, checkpoint_dir: pathlib.Path) -> None:
+  """Save a single role agent (NFSP or PolicyGradient) to checkpoint_dir.
+
+  Args:
+    agent: NFSP or PolicyGradient agent to persist.
+    checkpoint_dir: Target directory for the checkpoint files.
+
+  Raises:
+    TypeError: If agent is not a supported type.
+  """
   if isinstance(agent, nfsp.NFSP):
     _save_nfsp(agent, checkpoint_dir)
   elif isinstance(agent, policy_gradient.PolicyGradient):
@@ -75,6 +96,15 @@ def _save_role_agent(agent, checkpoint_dir: pathlib.Path) -> None:
 
 
 def _load_role_agent(agent, checkpoint_dir: pathlib.Path) -> None:
+  """Restore a single role agent (NFSP or PolicyGradient) from checkpoint_dir.
+
+  Args:
+    agent: Agent instance to restore into (type must match what was saved).
+    checkpoint_dir: Directory containing the previously saved checkpoint.
+
+  Raises:
+    TypeError: If agent is not a supported type.
+  """
   if isinstance(agent, nfsp.NFSP):
     _load_nfsp(agent, checkpoint_dir)
   elif isinstance(agent, policy_gradient.PolicyGradient):
@@ -84,6 +114,13 @@ def _load_role_agent(agent, checkpoint_dir: pathlib.Path) -> None:
 
 
 def _save_role_shared(agents: RoleSharedTeam, checkpoint_dir: str) -> None:
+  """Persist a RoleSharedTeam's defender, attacker, and optional role selection.
+
+  Args:
+    agents: The RoleSharedTeam to checkpoint.
+    checkpoint_dir: Root directory; 'role_defender/' and 'role_attacker/'
+      subdirectories are created automatically.
+  """
   root = pathlib.Path(checkpoint_dir)
   root.mkdir(parents=True, exist_ok=True)
   _save_role_agent(agents.defender, root / "role_defender")
@@ -104,6 +141,16 @@ def _save_role_shared(agents: RoleSharedTeam, checkpoint_dir: str) -> None:
 def _load_role_shared(
     algo: str, checkpoint_dir: str, rng: np.random.RandomState
 ) -> RoleSharedTeam:
+  """Reconstruct a RoleSharedTeam from a saved checkpoint directory.
+
+  Args:
+    algo: Algorithm key used to create fresh agent instances.
+    checkpoint_dir: Root directory previously written by _save_role_shared.
+    rng: Random state forwarded to agent creation.
+
+  Returns:
+    A RoleSharedTeam with restored weights and selection metadata.
+  """
   env = make_rl_environment()
   team = create_rl_agents(algo, env)
   if not isinstance(team, RoleSharedTeam):
@@ -121,6 +168,12 @@ def _load_role_shared(
 
 
 def _save_deep_cfr(solver: deep_cfr.DeepCFRSolver, checkpoint_dir: str) -> None:
+  """Save a DeepCFRSolver's network weights and iteration counter to disk.
+
+  Args:
+    solver: Trained DeepCFRSolver to persist.
+    checkpoint_dir: Target directory; 'model.pt' is written inside it.
+  """
   root = pathlib.Path(checkpoint_dir)
   root.mkdir(parents=True, exist_ok=True)
   torch.save(
@@ -136,6 +189,15 @@ def _save_deep_cfr(solver: deep_cfr.DeepCFRSolver, checkpoint_dir: str) -> None:
 
 
 def _load_deep_cfr(checkpoint_dir: str, rng: np.random.RandomState):
+  """Reconstruct bot adapters from a Deep CFR checkpoint directory.
+
+  Args:
+    checkpoint_dir: Directory containing 'model.pt' written by _save_deep_cfr.
+    rng: Random state forwarded to bot construction.
+
+  Returns:
+    List of bot adapters wrapping a DeepCFRSolver restored from the checkpoint.
+  """
   game, solver = build_deep_cfr_solver(rng)
   data = torch.load(
       pathlib.Path(checkpoint_dir) / "model.pt",

@@ -32,6 +32,19 @@ def mean_ci(values: Sequence[float], z: float = 1.96) -> Dict[str, float]:
 
 
 def _load_seed_result(results_root: str, seed: int) -> Dict:
+  """Load the tournament results JSON for a single seed.
+
+  Args:
+    results_root: Directory that contains per-seed subdirectories named
+      ``seed_<n>``.
+    seed: Integer seed whose results file should be loaded.
+
+  Returns:
+    Parsed JSON dict from ``<results_root>/seed_<seed>/tournament_results.json``.
+
+  Raises:
+    FileNotFoundError: If the expected results file does not exist.
+  """
   path = os.path.join(results_root, f"seed_{seed}", "tournament_results.json")
   if not os.path.exists(path):
     raise FileNotFoundError(f"Missing tournament results for seed {seed}: {path}")
@@ -43,7 +56,7 @@ def aggregate_multi_seed_results(
     results_root: str,
     seeds: Sequence[int],
 ) -> Dict[str, object]:
-  """Combine per-seed tournaments into mean rates and Wilson 95% CIs."""
+  """Combine per-seed tournaments into mean rates and 95% CIs (normal approx)."""
   per_seed = []
   algos: List[str] = []
   champion_counts: Dict[str, int] = {}
@@ -129,6 +142,17 @@ def aggregate_multi_seed_results(
 
 
 def _plot_aggregated_figures(results_root: str, agg: Dict) -> None:
+  """Render and save aggregated seeding and champion-frequency figures.
+
+  Produces ``aggregated_seeding`` (bar chart with 95% CI error bars) and
+  ``champion_frequency`` (bar chart) under ``<results_root>/figures/``.
+
+  Args:
+    results_root: Root directory of the multi-seed experiment; figures are
+      written to its ``figures/`` subdirectory.
+    agg: Aggregated payload dict as returned by
+      :func:`aggregate_multi_seed_results`.
+  """
   fig_dir = os.path.join(results_root, "figures")
   os.makedirs(fig_dir, exist_ok=True)
   algos = agg.get("algorithms", [])
@@ -166,6 +190,21 @@ def _plot_aggregated_figures(results_root: str, agg: Dict) -> None:
 def generate_aggregated_latex_report(
     results_root: str, agg: Dict[str, object]
 ) -> str:
+  """Write a LaTeX thesis report summarising the multi-seed aggregated results.
+
+  Produces tables and figure includes for seeding performance, round-robin
+  standings, bracket champion frequency, and per-seed champions, then writes
+  ``thesis_aggregated_report.tex`` to *results_root*.
+
+  Args:
+    results_root: Root directory of the multi-seed experiment.  Figures are
+      expected under its ``figures/`` subdirectory.
+    agg: Aggregated payload dict as returned by
+      :func:`aggregate_multi_seed_results`.
+
+  Returns:
+    Absolute path to the generated ``.tex`` file.
+  """
   fig_dir = os.path.join(results_root, "figures")
   tex_path = os.path.join(results_root, "thesis_aggregated_report.tex")
   algos = agg.get("algorithms", [])

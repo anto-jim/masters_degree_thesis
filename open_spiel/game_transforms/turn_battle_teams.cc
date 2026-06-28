@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Implementation of the TurnBattleTeams game transform.
+//
+// See turn_battle_teams.h for the design overview.  This file contains:
+//   - kGameType descriptor and factory registration
+//   - TurnBattleTeamsState method bodies (sub-phase bookkeeping, observation)
+//   - TurnBattleTeamsGame constructor and tensor shape queries
+
 #include "open_spiel/game_transforms/turn_battle_teams.h"
 
 #include <memory>
@@ -88,6 +95,10 @@ std::vector<Action> TurnBattleTeamsState::LegalActions() const {
   return LegalActions(CurrentPlayer());
 }
 
+// Buffers action_id for the current underlying member (sub_phase_) and
+// increments the sub-phase counter.  Once all kTurnBattleTeamsNumMembers
+// actions have been collected, they are forwarded to the underlying
+// simultaneous game as a single joint action and the sub-phase resets to 0.
 void TurnBattleTeamsState::DoApplyAction(Action action_id) {
   SPIEL_CHECK_FALSE(underlying_->IsTerminal());
   const int member = UnderlyingMember();
@@ -125,6 +136,11 @@ std::vector<double> TurnBattleTeamsState::Returns() const {
   return {team0, -team0};
 }
 
+// Writes the observation tensor for the requesting team player.
+// Layout: [underlying_obs (underlying_obs_size floats) |
+//          sub_phase normalised to [0, 1] |
+//          sub_phase parity (0 = first member of team, 1 = second) |
+//          normalised teammate action, or -1 if not yet available]
 void TurnBattleTeamsState::WriteObservation(Player player,
                                             absl::Span<float> values) const {
   SPIEL_CHECK_GE(player, 0);
@@ -190,10 +206,14 @@ int TurnBattleTeamsGame::MaxGameLength() const {
   return num_turns_ * kTurnBattleTeamsNumMembers;
 }
 
+// Returns the flat shape of the observation tensor: the underlying per-member
+// observation size plus kTurnBattleTeamsExtraObs sub-phase context scalars.
 std::vector<int> TurnBattleTeamsGame::ObservationTensorShape() const {
   return {underlying_obs_size_ + kTurnBattleTeamsExtraObs};
 }
 
+// Information-state tensor has the same layout as the observation tensor
+// because this game provides perfect information.
 std::vector<int> TurnBattleTeamsGame::InformationStateTensorShape() const {
   return ObservationTensorShape();
 }

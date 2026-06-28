@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Unit tests for the turn_battle_teams game transform.
+//
+// Verifies that loading "turn_battle_teams" produces a well-formed 2-player
+// sequential zero-sum game and that a complete rollout terminates with
+// zero-sum returns.
+//
+// Build and run:
+//   cmake --build build --target turn_battle_teams_test
+//   ./build/game_transforms/turn_battle_teams_test
+
 #include "open_spiel/game_transforms/turn_battle_teams.h"
 
 #include <memory>
@@ -24,6 +34,17 @@
 namespace open_spiel {
 namespace {
 
+// Exercises the full turn_battle_teams contract:
+//   - LoadGameTest: game registers correctly and satisfies basic API invariants
+//   - NumPlayers == 2: the wrapper reduces 4 underlying players to 2 teams
+//   - Dynamics == kSequential: the wrapped game is sequential, not simultaneous
+//   - Utility == kZeroSum: one team's gain is the other's loss
+//   - NumDistinctActions == 5: action space matches the underlying turn_battle
+//   - Initial CurrentPlayer == 0: team 0 always opens the first sub-phase
+//   - Initial LegalActions().size() == 4: 4 of the 5 actions are legal at start
+//   - Full rollout: every step provides a valid team player and legal actions,
+//     the game reaches a terminal state within MaxGameLength steps
+//   - Returns are zero-sum: returns[0] == -returns[1]
 void BasicTurnBattleTeamsTests() {
   testing::LoadGameTest("turn_battle_teams(num_turns=3)");
   auto game = LoadGame("turn_battle_teams(num_turns=3)");

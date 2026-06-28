@@ -100,14 +100,20 @@ flags.DEFINE_list(
     "retrain_algorithms", [],
     "When set, only these algorithms are trained; others load from "
     "output_dir/checkpoints/ (requires existing checkpoints).")
+
+# --- MCTS / tree-search flags ---
 flags.DEFINE_integer("mcts_simulations", 50, "MCTS simulations per move.")
 flags.DEFINE_float("mcts_uct_c", 2.0, "MCTS UCT exploration constant.")
 flags.DEFINE_integer("mcts_rollouts", 1, "Random rollouts per MCTS evaluation.")
+
+# --- AlphaZero (Python) flags ---
 flags.DEFINE_integer("az_replay_buffer_size", 4096, "AlphaZero replay buffer.")
 flags.DEFINE_integer("az_batch_size", 64, "AlphaZero batch size.")
 flags.DEFINE_float("az_learning_rate", 1e-3, "AlphaZero learning rate.")
 flags.DEFINE_float("az_temperature", 1.0, "AlphaZero self-play temperature.")
 flags.DEFINE_integer("az_temperature_drop", 4, "Greedy after N moves.")
+
+# --- AlphaZero C++ binary flags ---
 flags.DEFINE_string(
     "az_cpp_nn_model", "mlp",
     "C++ AlphaZero network type (mlp or resnet; Python eval supports mlp).")
@@ -122,6 +128,8 @@ flags.DEFINE_integer("az_cpp_eval_levels", 3, "C++ AlphaZero eval MCTS levels.")
 flags.DEFINE_integer(
     "az_cpp_evaluation_window", 50,
     "C++ AlphaZero evaluation averaging window.")
+
+# --- Deep CFR flags ---
 flags.DEFINE_integer(
     "dcfr_traversals", 10,
     "Deep CFR traversals per player per iteration (balance quality vs GPU time).")
@@ -140,6 +148,8 @@ flags.DEFINE_boolean(
     "dcfr_reinitialize_advantage_networks", False,
     "Reset advantage nets each iteration (canonical Deep CFR; off for short budgets).")
 flags.DEFINE_integer("dcfr_max_turns", 5, "Deep CFR max turns (match game_params).")
+
+# --- RL mixed-training flags ---
 flags.DEFINE_float(
     "train_bot_mix", 0.5,
     "Probability of RL training episodes vs bot opponents (else self-play).")
@@ -147,6 +157,8 @@ flags.DEFINE_enum(
     "train_bot_opponent", "mixed", ["random", "heuristic", "mixed"],
     "Bot opponent type for mixed RL training.")
 flags.DEFINE_boolean("round_robin", True, "Run round-robin before bracket.")
+
+# --- NFSP flags ---
 flags.DEFINE_integer("nfsp_replay_buffer_capacity", 50000, "NFSP replay buffer.")
 flags.DEFINE_integer("nfsp_reservoir_buffer_capacity", 100000, "NFSP reservoir.")
 flags.DEFINE_float("nfsp_anticipatory_param", 0.1, "NFSP anticipatory param.")
@@ -159,6 +171,16 @@ flags.DEFINE_string(
 
 
 def run_compare(rng: np.random.RandomState) -> None:
+  """Train every algorithm and evaluate each one against a random-bot baseline.
+
+  Each trainable algorithm listed in ``FLAGS.algorithms`` is trained for
+  ``FLAGS.train_episodes`` episodes; bot-only algorithms skip training.  All
+  algorithms are then evaluated against a random-bot opponent and the per-algorithm
+  win-rate summary is appended to a comparison table written to ``FLAGS.output_dir``.
+
+  Args:
+    rng: NumPy RandomState for training and evaluation reproducibility.
+  """
   output_dir = ensure_output_dir(FLAGS.output_dir)
   rows = []
   for algo in map(normalize_algorithm, FLAGS.algorithms):
@@ -180,6 +202,16 @@ def run_compare(rng: np.random.RandomState) -> None:
 
 
 def run_train(rng: np.random.RandomState) -> None:
+  """Train a single algorithm and print a quick evaluation against a random bot.
+
+  The algorithm is taken from ``FLAGS.algorithm``.  After training the model is
+  evaluated for ``FLAGS.eval_episodes`` games versus a random bot and the summary
+  statistics are printed to stdout.  The training log is persisted to
+  ``FLAGS.output_dir``.
+
+  Args:
+    rng: NumPy RandomState for training and evaluation reproducibility.
+  """
   output_dir = ensure_output_dir(FLAGS.output_dir)
   algo = normalize_algorithm(FLAGS.algorithm)
   agents, log, _artifact = train_algorithm(
@@ -190,6 +222,15 @@ def run_train(rng: np.random.RandomState) -> None:
 
 
 def run_evaluate(rng: np.random.RandomState) -> None:
+  """Evaluate a head-to-head matchup between two named algorithm teams without training.
+
+  Team algorithms are taken from ``FLAGS.team1_algo`` and ``FLAGS.team2_algo``.
+  Results are printed as JSON to stdout and saved to ``FLAGS.output_dir`` as
+  ``eval_<team1>_vs_<team2>.json``.
+
+  Args:
+    rng: NumPy RandomState for episode-sampling reproducibility.
+  """
   output_dir = ensure_output_dir(FLAGS.output_dir)
   stats = evaluate_team_matchup(
       FLAGS.team1_algo, FLAGS.team2_algo, FLAGS.eval_episodes, rng).summary()
@@ -204,6 +245,16 @@ def run_evaluate(rng: np.random.RandomState) -> None:
 
 
 def run_tournament(rng: np.random.RandomState) -> None:
+  """Run a full training-plus-tournament experiment and generate a LaTeX report.
+
+  Saves the experiment configuration, trains all algorithms in ``FLAGS.algorithms``,
+  runs the optional round-robin (controlled by ``FLAGS.round_robin``) and the
+  single-elimination bracket, then calls ``generate_latex_report`` to produce the
+  thesis-ready ``.tex`` file inside ``FLAGS.output_dir``.
+
+  Args:
+    rng: NumPy RandomState for training and evaluation reproducibility.
+  """
   output_dir = ensure_output_dir(FLAGS.output_dir)
   save_experiment_config(output_dir, seed=FLAGS.seed)
   run_full_tournament(
@@ -214,6 +265,17 @@ def run_tournament(rng: np.random.RandomState) -> None:
 
 
 def run_multi_seed(_rng: np.random.RandomState) -> None:
+  """Run the full tournament independently for each seed, then aggregate results.
+
+  Each seed listed in ``FLAGS.seeds`` gets its own ``seed_<N>`` subdirectory
+  under ``FLAGS.results_root``.  After all per-seed runs complete,
+  ``aggregate_multi_seed_results`` merges the individual JSON result files and
+  ``generate_aggregated_latex_report`` writes the combined ``.tex`` report.
+
+  Args:
+    _rng: Unused; each seed creates its own ``np.random.RandomState`` from the
+      seed value so results are fully deterministic per seed.
+  """
   root = ensure_output_dir(FLAGS.results_root)
   seeds = [int(s) for s in FLAGS.seeds]
   retrain = getattr(FLAGS, "retrain_algorithms", None) or []
@@ -238,6 +300,16 @@ def run_multi_seed(_rng: np.random.RandomState) -> None:
 
 
 def run_aggregate(_rng: np.random.RandomState) -> None:
+  """Aggregate results from existing per-seed directories without re-running any training.
+
+  Reads the ``results.json`` files produced by previous ``multi_seed`` runs from
+  ``seed_<N>`` subdirectories of ``FLAGS.results_root``, merges them, and
+  regenerates the aggregated JSON and LaTeX report.  Useful for re-running
+  post-processing after modifying report templates.
+
+  Args:
+    _rng: Unused; aggregation is deterministic given the on-disk result files.
+  """
   root = ensure_output_dir(FLAGS.results_root)
   seeds = [int(s) for s in FLAGS.seeds]
   agg = aggregate_multi_seed_results(root, seeds)
@@ -247,6 +319,16 @@ def run_aggregate(_rng: np.random.RandomState) -> None:
 
 
 def main(argv):
+  """Entry point: print experiment summary and dispatch to the selected mode handler.
+
+  Loads the game, prints a brief configuration summary (game name, player count,
+  training episodes, compute device), initialises the global NumPy RNG, and calls
+  the appropriate mode function — one of ``run_train``, ``run_evaluate``,
+  ``run_compare``, ``run_tournament``, ``run_multi_seed``, or ``run_aggregate``.
+
+  Args:
+    argv: Unused positional arguments absorbed by ``absl.app.run``.
+  """
   del argv
   game = load_game()
   print(f"Game: {game.get_type().short_name}, players={game.num_players()}")

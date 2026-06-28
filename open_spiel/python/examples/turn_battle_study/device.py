@@ -23,6 +23,7 @@ def resolve_cpp_az_devices(name: str) -> str:
 
 
 def device_label(device: torch.device) -> str:
+  """Return a human-readable label for *device*, including the GPU model name for CUDA devices."""
   if device.type == "cuda":
     idx = device.index if device.index is not None else torch.cuda.current_device()
     return f"cuda ({torch.cuda.get_device_name(idx)})"

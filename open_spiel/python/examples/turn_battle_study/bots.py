@@ -22,6 +22,13 @@ FLAGS = flags.FLAGS
 
 
 class HeuristicBattleBot(pyspiel.Bot):
+  """Rule-based bot that prefers offensive actions and occasionally heals.
+
+  Defenders bias toward the attacker action (index 1); attackers prefer
+  action 0. The special action (index 3) is chosen with 35% probability
+  when legal, and heal (action 2) is chosen with 25% probability.
+  """
+
   DEFENDERS = frozenset(DEFENDER_SEATS)
 
   def __init__(self, player_id: int, rng: np.random.RandomState):
@@ -54,6 +61,19 @@ class HeuristicBattleBot(pyspiel.Bot):
 
 
 def _time_step_from_turn_based_state(state: pyspiel.State) -> rl_environment.TimeStep:
+  """Build an rl_environment.TimeStep from a turn-based pyspiel state.
+
+  Extracts observations and legal actions from the inner simultaneous
+  game state. Rewards and discounts are left as None; the step type is
+  LAST when the state is terminal, MID otherwise.
+
+  Args:
+    state: A turn-based pyspiel.State wrapping a simultaneous game.
+
+  Returns:
+    A TimeStep populated with info_state, legal_actions, current_player,
+    and serialized_state (set to None).
+  """
   sim = state.simultaneous_game_state()
   n = sim.num_players()
   info_state = [list(sim.information_state_tensor(p)) for p in range(n)]
@@ -96,6 +116,12 @@ class RlAgentTurnBasedBot(pyspiel.Bot):
 
 
 class BotRlAdapter:
+  """Wraps a pyspiel.Bot to satisfy the RL agent step() interface.
+
+  Deserializes the game state from the time-step observation and
+  delegates action selection to the underlying bot.
+  """
+
   def __init__(self, bot: pyspiel.Bot, player_id: int):
     self._bot = bot
     self._player_id = player_id
@@ -125,6 +151,20 @@ def create_pyspiel_bot(
     rng: np.random.RandomState,
     for_mcts: bool = False,
 ) -> pyspiel.Bot:
+  """Construct a pyspiel.Bot for the given algorithm and player seat.
+
+  Args:
+    algorithm: Bot algorithm name (``"random"``, ``"mcts"``,
+      ``"heuristic"``, or any key in EVAL_FALLBACK_ALGOS).
+    game: The pyspiel.Game the bot will play.
+    player_id: Seat index this bot will occupy.
+    rng: Random-number generator for stochastic decisions.
+    for_mcts: When True, loads the turn-based game for MCTS tree search
+      instead of using the supplied game directly.
+
+  Returns:
+    A pyspiel.Bot instance configured for the requested algorithm.
+  """
   algo = normalize_algorithm(algorithm)
   if algo == "random":
     return uniform_random.UniformRandomBot(player_id, rng)
@@ -176,10 +216,29 @@ class DeepCFRPolicyBot(pyspiel.Bot):
 
 
 def bots_to_adapters(bots: Sequence[pyspiel.Bot]) -> List[BotRlAdapter]:
+  """Wrap each bot in a BotRlAdapter indexed by its position.
+
+  Args:
+    bots: Sequence of pyspiel.Bot instances.
+
+  Returns:
+    A list of BotRlAdapter objects, one per bot, with player_id equal
+    to the bot's index in the sequence.
+  """
   return [BotRlAdapter(bot, i) for i, bot in enumerate(bots)]
 
 
 def trained_bot_game(agents: Optional[Sequence]) -> Optional[pyspiel.Game]:
+  """Return the pyspiel.Game embedded in a DeepCFR bot agent, if any.
+
+  Args:
+    agents: A sequence of agent-like objects to inspect.
+
+  Returns:
+    The game stored in the first agent's DeepCFRPolicyBot, or None if
+    the agents list is empty or the first agent does not wrap a
+    DeepCFRPolicyBot.
+  """
   if not agents or not hasattr(agents[0], "_bot"):
     return None
   bot = agents[0]._bot

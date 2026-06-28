@@ -40,6 +40,13 @@ Before the tournament, `select_best_role_seats()` picks the best defender/attack
 
 ### Command
 
+> **Repository note:** Step 1 below copies AlphaZero and Deep CFR checkpoints
+> from `production_300/`, which is **not committed** to git (local GPU run only).
+> Checkpoints and figure PDFs under `production_final/` are also gitignored.
+> To reproduce from scratch, run a full `--mode=multi_seed` campaign without
+> `--retrain_algorithms`, or restore `production_300/` from backup before
+> executing Step 1.
+
 ```bash
 # 1) Copy reused checkpoints per seed (AZ + DCFR from Phase 7)
 for seed in 42 43 44; do

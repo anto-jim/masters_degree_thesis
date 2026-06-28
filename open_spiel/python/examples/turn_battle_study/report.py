@@ -13,6 +13,12 @@ import numpy as np
 
 
 def _save_figure(fig_dir: str, name: str) -> None:
+  """Save the current matplotlib figure as both PDF and PNG into fig_dir.
+
+  Args:
+    fig_dir: Directory in which to write the output files.
+    name: Base filename (without extension) for the saved figure.
+  """
   plt.tight_layout()
   plt.savefig(os.path.join(fig_dir, f"{name}.pdf"))
   plt.savefig(os.path.join(fig_dir, f"{name}.png"), dpi=150)
@@ -20,6 +26,15 @@ def _save_figure(fig_dir: str, name: str) -> None:
 
 
 def _latex_preamble(title: str, author: str = "") -> List[str]:
+  """Return LaTeX document header lines up to and including \\maketitle.
+
+  Args:
+    title: Document title inserted into the \\title command.
+    author: Optional author string; defaults to an empty author field.
+
+  Returns:
+    List of LaTeX source lines forming the document preamble and opening.
+  """
   return [
       r"\documentclass[11pt]{article}",
       r"\usepackage[margin=1in]{geometry}",
@@ -35,6 +50,20 @@ def _latex_preamble(title: str, author: str = "") -> List[str]:
 
 
 def _read_training_curves(output_dir: str) -> Dict[str, Dict[str, List[float]]]:
+  """Load per-algorithm training-curve CSVs from output_dir.
+
+  Each CSV must contain at least the columns ``episode`` and
+  ``team1_win_rate_vs_random``.  The algorithm name is inferred from the
+  filename pattern ``training_<algo>.csv``.
+
+  Args:
+    output_dir: Directory that contains ``training_*.csv`` files.
+
+  Returns:
+    Mapping from algorithm name to a dict with keys ``"episodes"`` and
+    ``"win_rate"``, each holding a list of floats.  Algorithms whose CSV
+    contains no rows are omitted.
+  """
   curves: Dict[str, Dict[str, List[float]]] = {}
   for path in glob.glob(os.path.join(output_dir, "training_*.csv")):
     algo = os.path.basename(path).replace("training_", "").replace(".csv", "")
@@ -50,6 +79,12 @@ def _read_training_curves(output_dir: str) -> Dict[str, Dict[str, List[float]]]:
 
 
 def _plot_training_curves(curves: Dict[str, Dict[str, List[float]]], fig_dir: str):
+  """Plot win-rate-vs-random training curves for all algorithms and save to fig_dir.
+
+  Args:
+    curves: Mapping returned by :func:`_read_training_curves`.
+    fig_dir: Directory in which the figure is saved as ``training_curves``.
+  """
   if not curves:
     return
   plt.figure(figsize=(8, 5))
@@ -71,6 +106,17 @@ def _plot_seeding_bar(
     name: str = "seeding",
     title: str = "Seeding results before bracket",
 ) -> None:
+  """Plot a descending bar chart of per-algorithm seeding scores.
+
+  Args:
+    algos: Algorithm names corresponding to each entry in *values*.
+    values: Win-rate (or other scalar) score for each algorithm.
+    fig_dir: Directory in which the figure is saved.
+    yerr: Optional asymmetric error bars as ``[lower_deltas, upper_deltas]``;
+      when provided the y-axis is clamped to ``[0, 1]``.
+    name: Base filename (without extension) for the saved figure.
+    title: Chart title.
+  """
   order = np.argsort(values)[::-1]
   algos_ord = [algos[i] for i in order]
   vals_ord = [values[i] for i in order]
@@ -89,6 +135,13 @@ def _plot_seeding_bar(
 
 
 def _plot_round_robin(matrix: Dict[str, Dict[str, float]], algos: List[str], fig_dir: str):
+  """Plot the round-robin pairwise win-rate matrix as a colour-coded heatmap.
+
+  Args:
+    matrix: Nested mapping ``matrix[algo_a][algo_b]`` → win rate of *a* vs *b*.
+    algos: Ordered list of algorithm names used as row/column labels.
+    fig_dir: Directory in which the figure is saved as ``round_robin``.
+  """
   if not matrix or not algos:
     return
   data = np.array([[matrix[a][b] for b in algos] for a in algos])
@@ -108,6 +161,14 @@ def _plot_round_robin(matrix: Dict[str, Dict[str, float]], algos: List[str], fig
 
 
 def _plot_bracket(bracket: List[Dict], champion: str, fig_dir: str):
+  """Plot bracket matchup team-1 win rates as a horizontal bar chart.
+
+  Args:
+    bracket: List of match dicts, each containing keys ``round``, ``team1``,
+      ``team2``, and ``team1_win_rate``.
+    champion: Name of the overall bracket winner used in the chart title.
+    fig_dir: Directory in which the figure is saved as ``bracket``.
+  """
   if not bracket:
     return
   labels, t1_rates = [], []
@@ -124,6 +185,18 @@ def _plot_bracket(bracket: List[Dict], champion: str, fig_dir: str):
 
 
 def generate_latex_report(output_dir: str) -> str:
+  """Generate all figures and a self-contained LaTeX report for one experiment run.
+
+  Reads ``tournament_results.json`` and ``training_*.csv`` from *output_dir*,
+  produces figures under ``<output_dir>/figures/``, and writes
+  ``turn_battle_report.tex`` to *output_dir*.
+
+  Args:
+    output_dir: Root directory of a single-seed experiment run.
+
+  Returns:
+    Absolute path to the generated ``.tex`` file.
+  """
   fig_dir = os.path.join(output_dir, "figures")
   os.makedirs(fig_dir, exist_ok=True)
 

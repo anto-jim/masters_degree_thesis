@@ -26,13 +26,27 @@ THESIS_ALGORITHMS = ["alphazero", "deep_cfr", "nfsp", "qpg"]
 DEFAULT_TRAIN_EPISODES = 300
 DEFAULT_EVAL_EPISODES = 50
 DEFAULT_EVAL_EVERY = 50
-DEFAULT_SEEDS = [42, 43, 44, 45, 46]
+DEFAULT_SEEDS = [42, 43, 44]
 
 
 def normalize_algorithm(name: str) -> str:
+  """Normalize an algorithm name by stripping whitespace, lowercasing, and resolving aliases."""
   return ALGORITHM_ALIASES.get(name.strip().lower(), name.strip().lower())
 
 
 def effective_bot_algorithm(name: str) -> str:
+  """Return the bot algorithm to use when evaluating *name* head-to-head.
+
+  Turn-based-trained algorithms that cannot drive the RL evaluation stack
+  directly are remapped to a compatible bot (e.g. ``alphazero`` → ``mcts``,
+  ``deep_cfr`` → ``heuristic``).  All other algorithms are returned unchanged
+  after normalisation.
+
+  Args:
+    name: Raw algorithm name (may include aliases or mixed case).
+
+  Returns:
+    The normalised bot algorithm name suitable for head-to-head evaluation.
+  """
   algo = normalize_algorithm(name)
   return EVAL_FALLBACK_ALGOS.get(algo, algo)

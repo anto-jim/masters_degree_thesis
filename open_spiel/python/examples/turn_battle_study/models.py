@@ -13,11 +13,17 @@ from open_spiel.python.examples.turn_battle_study.config import (
 
 @dataclass
 class MatchResult:
+  """Accumulates win, draw, and return statistics across multiple episodes.
+
+  Records match outcomes between two teams so that aggregate win-rates and
+  average returns can be computed at the end of an evaluation run via
+  :meth:`summary`.
+  """
   team1_wins: int = 0
   team2_wins: int = 0
   draws: int = 0
-  team1_return_sum: float = 0.0
-  team2_return_sum: float = 0.0
+  team1_return_sum: float = 0.0  # Cumulative; divide by episodes for mean return.
+  team2_return_sum: float = 0.0  # Cumulative; divide by episodes for mean return.
   episodes: int = 0
 
   def record(self, returns: Sequence[float]) -> None:
@@ -47,6 +53,11 @@ class MatchResult:
 
 @dataclass
 class TrainingLog:
+  """Stores a training-curve snapshot for a single algorithm.
+
+  ``episodes``, ``team1_win_rate``, and ``team2_win_rate`` are parallel lists
+  appended at each evaluation checkpoint during training.
+  """
   algorithm: str
   episodes: List[int] = field(default_factory=list)
   team1_win_rate: List[float] = field(default_factory=list)
@@ -55,8 +66,9 @@ class TrainingLog:
 
 @dataclass
 class BracketMatch:
+  """Represents the outcome of one match in a single-elimination bracket."""
   round_num: int
   team1_algo: str
   team2_algo: str
   winner: str
-  stats: Dict[str, float]
+  stats: Dict[str, float]  # Populated from MatchResult.summary().

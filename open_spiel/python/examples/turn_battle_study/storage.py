@@ -15,11 +15,21 @@ FLAGS = flags.FLAGS
 
 
 def ensure_output_dir(path: str) -> str:
+  """Create *path* (including any missing parents) if it does not exist, then return it."""
   os.makedirs(path, exist_ok=True)
   return path
 
 
 def save_training_log(log: TrainingLog, output_dir: str) -> None:
+  """Write training-curve data from *log* to a CSV file in *output_dir*.
+
+  The output file is named ``training_<algorithm>.csv`` and contains columns
+  ``episode``, ``team1_win_rate_vs_random``, and ``random_win_rate``.
+
+  Args:
+    log: Training-curve data collected for one algorithm.
+    output_dir: Directory in which to create the CSV file.
+  """
   csv_path = os.path.join(output_dir, f"training_{log.algorithm}.csv")
   with open(csv_path, "w", newline="", encoding="utf-8") as f:
     w = csv.writer(f)
@@ -29,6 +39,16 @@ def save_training_log(log: TrainingLog, output_dir: str) -> None:
 
 
 def save_comparison_table(rows: List[Dict], output_dir: str) -> None:
+  """Persist an algorithm comparison table as both CSV and JSON.
+
+  Writes ``algorithm_comparison.csv`` and ``algorithm_comparison.json`` to
+  *output_dir*.  Does nothing when *rows* is empty.
+
+  Args:
+    rows: List of dicts representing per-algorithm summary statistics.  All
+      dicts must share the same set of keys.
+    output_dir: Destination directory for the output files.
+  """
   if not rows:
     return
   keys = list(rows[0].keys())

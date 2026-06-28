@@ -12,6 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Integration tests for the native 4-player simultaneous `turn_battle` game.
+//
+// Suite (run in order from main):
+//   1. BasicTurnBattleTests      — load/clone/observation checks + random rollouts
+//   2. CannotAttackDeadTargets   — LegalActions omits dead enemy targets
+//   3. LegalActionsValidAtEveryState — random rollouts on the turn-based wrapper
+//
+// Build: cmake --build build --target turn_battle_test
+// Run:   ./build/games/turn_battle_test   (or ctest -R turn_battle_test)
+//
+// The turn-based wrapper test matters because Deep CFR and tournament evaluation
+// use turn_based_simultaneous_game(turn_battle(...)), not the raw simultaneous API.
+
 #include <algorithm>
 #include <iostream>
 
@@ -33,6 +46,8 @@ bool ContainsAction(const std::vector<Action>& actions, Action action) {
 }
 
 void BasicTurnBattleTests() {
+  // Standard OpenSpiel smoke tests on the native simultaneous game:
+  // serialization, cloning, observation tensors, and 100 random episodes.
   std::shared_ptr<const Game> game = LoadGame("turn_battle");
   SPIEL_CHECK_EQ(game->GetType().short_name, "turn_battle");
   SPIEL_CHECK_EQ(game->NumPlayers(), kNumPlayers);
@@ -43,6 +58,8 @@ void BasicTurnBattleTests() {
 }
 
 void LegalActionsValidAtEveryState() {
+  // Deep CFR and RL training traverse turn_based_simultaneous_game(turn_battle).
+  // 10 random episodes confirm every intermediate state has valid legal actions.
   std::shared_ptr<const Game> game = LoadGameAsTurnBased("turn_battle");
   SPIEL_CHECK_EQ(game->GetType().short_name, "turn_based_simultaneous_game");
   std::cout << "LegalActionsValidAtEveryState: wrapped turn_battle ("
@@ -51,13 +68,23 @@ void LegalActionsValidAtEveryState() {
 }
 
 void CannotAttackDeadTargets() {
+  // Regression test for LegalActions: attack actions must not be offered against
+  // enemies at 0 HP (ResolveTurn already ignores such attacks; this keeps MCTS,
+  // CFR traversals, and RL policies from selecting illegal action IDs).
+  //
+  // Setup (Team 1 = P0+P1, Team 2 = P2+P3; defenders P0/P2, attackers P1/P3):
+  //   For kMaxHealthPoints turns, joint actions each round are:
+  //     P0,P1 -> kTargetEnemyDefender (focus fire P2)
+  //     P2    -> kTargetEnemyAttacker (counter P1)
+  //     P3    -> kSelfDefense
+  // After 3 rounds P2 is dead; P1 and P3 remain alive.
   GameParameters params;
   params["num_turns"] = GameParameter(20);
   std::shared_ptr<const Game> game = LoadGame("turn_battle", params);
   std::unique_ptr<State> state = game->NewInitialState();
   auto* tb = down_cast<TurnBattleState*>(state.get());
 
-  // P0 and P1 focus P2; P2 counters P1 once per turn before dying.
+  // P0 and P1 focus P2; P2 counters P1 each turn until P2 reaches 0 HP.
   for (int turn = 0; turn < kMaxHealthPoints; ++turn) {
     SPIEL_CHECK_FALSE(tb->IsTerminal());
     tb->ApplyActions({kTargetEnemyDefender, kTargetEnemyDefender,
@@ -69,8 +96,8 @@ void CannotAttackDeadTargets() {
   SPIEL_CHECK_GT(tb->PlayerHealthPoints()[3], 0);
 
   const std::vector<Action> p1_legal = tb->LegalActions(1);
-  SPIEL_CHECK_FALSE(ContainsAction(p1_legal, kTargetEnemyDefender));
-  SPIEL_CHECK_TRUE(ContainsAction(p1_legal, kTargetEnemyAttacker));
+  SPIEL_CHECK_FALSE(ContainsAction(p1_legal, kTargetEnemyDefender));  // P2 dead
+  SPIEL_CHECK_TRUE(ContainsAction(p1_legal, kTargetEnemyAttacker));   // P3 alive
   SPIEL_CHECK_TRUE(ContainsAction(p1_legal, kSelfDefense));
 
   std::cout << "CannotAttackDeadTargets: P1 cannot target dead P2" << std::endl;

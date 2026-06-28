@@ -12,6 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// turn_battle.cc — Implementation of the TurnBattle simultaneous-move game.
+//
+// Implements game registration, state transitions, action resolution, and
+// observer tensor serialisation for the four-player two-team battle game
+// declared in turn_battle.h.
+//
+// Resolution order within a turn (ResolveTurn):
+//   1. Attacker/defender attacks and attacker special moves are applied to a
+//      scratch HP vector so that all actions see the same pre-turn state.
+//   2. Self-defense and defender special moves then restore HP from the
+//      pre-turn snapshot, nullifying incoming damage for that player/team.
+// This two-pass design ensures simultaneous semantics: no ordering advantage.
+
 #include "open_spiel/games/turn_battle/turn_battle.h"
 
 #include <algorithm>
@@ -52,6 +65,9 @@ std::shared_ptr<const Game> Factory(const GameParameters& params) {
 REGISTER_SPIEL_GAME(kGameType, Factory);
 RegisterSingleTensorObserver single_tensor(kGameType.short_name);
 
+// Returns per-player payoffs given final team HP totals.
+// Team 0 (players 0–1) wins if team1_health > team2_health (+1/-1),
+// team 1 wins if team2_health > team1_health (-1/+1), otherwise draw (0/0).
 std::vector<double> TeamReturns(int team1_health, int team2_health) {
   std::vector<double> returns(kNumPlayers, 0.0);
   if (team1_health > team2_health) {
@@ -66,6 +82,9 @@ std::vector<double> TeamReturns(int team1_health, int team2_health) {
 
 }  // namespace
 
+// Computes the RoleTargets descriptor for `player`.
+// Players 0 and 2 are Defenders; players 1 and 3 are Attackers.
+// Team layout: {0,1} vs {2,3}.
 RoleTargets RoleTargetsFor(Player player) {
   const bool is_defender = (player == 0 || player == 2);
   if (is_defender) {
@@ -80,6 +99,10 @@ class TurnBattleObserver : public Observer {
       : Observer(/*has_string=*/true, /*has_tensor=*/true),
         iig_obs_type_(iig_obs_type) {}
 
+  // Serialises the observation for `player` into named tensor slices:
+  //   "public_info"    (if public_info set): [turn | HP×4 | special×4]
+  //   "private_info"                       : [own HP | own special]
+  //   "action_history" (if perfect_recall) : flat action sequence, zero-padded
   void WriteTensor(const State& observed_state, int player,
                    Allocator* allocator) const override {
     const auto& state = down_cast<const TurnBattleState&>(observed_state);
@@ -113,6 +136,9 @@ class TurnBattleObserver : public Observer {
     }
   }
 
+  // Returns a human-readable observation string for `player`.
+  // With perfect_recall the full game string is returned; otherwise the
+  // current-turn observation string (no action history) is used.
   std::string StringFrom(const State& observed_state,
                          int player) const override {
     const auto& state = down_cast<const TurnBattleState&>(observed_state);
@@ -137,6 +163,11 @@ Player TurnBattleState::CurrentPlayer() const {
   return IsTerminal() ? kTerminalPlayerId : kSimultaneousPlayerId;
 }
 
+// Returns legal actions for `player` in the current state.
+// Dead players are forced to pick kDeadPlayerAction (no-op).
+// Living players may attack either living enemy, use self-defense, or — when
+// their special move has not been spent — use it (Defenders protect the team;
+// Attackers hit both enemies at once, but only if at least one is alive).
 std::vector<Action> TurnBattleState::LegalActions(Player player) const {
   if (IsTerminal()) return {};
   if (player == kSimultaneousPlayerId) return LegalFlatJointActions();
@@ -167,6 +198,7 @@ void TurnBattleState::DoApplyAction(Action) {
   SPIEL_CHECK_TRUE(false);
 }
 
+// Decrements the HP of `target` in `health` by 1, clamped to 0.
 void TurnBattleState::ApplyDamage(int target, std::vector<int>* health) {
   (*health)[target] = std::max(0, (*health)[target] - 1);
 }
@@ -176,6 +208,12 @@ int TurnBattleState::TeamHealth(int team) const {
          player_health_points_[team * kTeamSize + 1];
 }
 
+// Applies one full simultaneous turn to player_health_points_.
+// Uses a two-pass approach on a scratch HP copy (new_health):
+//   Pass 1 — offensive actions (attack, attacker special) reduce new_health.
+//   Pass 2 — defensive actions restore new_health entries to their pre-turn
+//             values, cancelling damage received this turn.
+// Consumes each player's one-shot special_move flag on use.
 void TurnBattleState::ResolveTurn(const std::vector<Action>& actions) {
   std::vector<int> new_health = player_health_points_;
 
@@ -237,6 +275,9 @@ void TurnBattleState::DoApplyActions(const std::vector<Action>& actions) {
   if (IsTerminal()) UpdateWinners();
 }
 
+// Populates winners_ with the indices of the winning team's players.
+// Must only be called when IsTerminal() is true.  An empty winners_ set
+// indicates a draw (equal HP totals or both teams wiped out simultaneously).
 void TurnBattleState::UpdateWinners() {
   winners_.clear();
   if (!IsTerminal()) return;
@@ -365,10 +406,14 @@ double TurnBattleGame::MinUtility() const { return -1.0; }
 double TurnBattleGame::MaxUtility() const { return 1.0; }
 absl::optional<double> TurnBattleGame::UtilitySum() const { return 0.0; }
 
+// Returns the flat tensor shape for the information-state (full-recall) view:
+//   [current_turn(1) | HP×4 | special×4 | action_history(num_turns×4)]
 std::vector<int> TurnBattleGame::InformationStateTensorShape() const {
   return {1 + kNumPlayers * 2 + 2 + num_turns_ * kNumPlayers};
 }
 
+// Returns the flat tensor shape for the current-turn observation (no history):
+//   [current_turn(1) | HP×4 | special×4]
 std::vector<int> TurnBattleGame::ObservationTensorShape() const {
   return {1 + kNumPlayers * 2 + 2};
 }

@@ -28,6 +28,14 @@ def role_relative_state_size(num_turns: int) -> int:
 
 
 def _enemy_seats(seat_id: int) -> Tuple[int, int]:
+  """Return the two enemy seat indices for the given seat.
+
+  Args:
+    seat_id: Seat index (0–3) of the querying player.
+
+  Returns:
+    A pair (defender_seat, attacker_seat) belonging to the opposing team.
+  """
   if seat_id in (0, 1):
     return 2, 3
   return 0, 1
@@ -91,6 +99,8 @@ def _remap_timestep(
 
 def _sync_agent_weights(src, dst) -> None:
   """Copy trainable weights from src to dst (defender or attacker pair)."""
+  if src is dst:
+    return
   from open_spiel.python.pytorch import nfsp
   from open_spiel.python.pytorch import policy_gradient
 
@@ -141,7 +151,7 @@ class RoleSeatFacade:
 
 
 class RoleSharedTeam:
-  """Four seat facades; defender/attacker weights synced after each episode."""
+  """Four seat facades; one shared defender net and one shared attacker net."""
 
   def __init__(
       self,
@@ -180,6 +190,7 @@ class RoleSharedTeam:
 
 
 def is_role_shared_team(agents) -> bool:
+  """Return True if agents is a RoleSharedTeam instance."""
   return isinstance(agents, RoleSharedTeam)
 
 
@@ -230,6 +241,20 @@ def select_best_role_seats(
 
 
 def agents_for_matchup(agents, for_team1: bool) -> List:
+  """Select the agent lineup for one team side of a matchup.
+
+  For RoleSharedTeam agents, delegates to lineup_for_matchup; for plain
+  lists, returns agents unchanged.
+
+  Args:
+    agents: A RoleSharedTeam or a flat list of agents.
+    for_team1: True to return the team-1 lineup (seats 0/1), False for
+      team-2 (seats 2/3).
+
+  Returns:
+    A list of four agent-like objects with None placeholders for
+    the opposing team's seats, or the original agents list.
+  """
   if not is_role_shared_team(agents):
     return agents
   return agents.lineup_for_matchup(for_team1=for_team1)

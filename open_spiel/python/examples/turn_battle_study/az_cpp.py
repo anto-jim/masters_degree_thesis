@@ -42,6 +42,15 @@ _CHECKPOINT_ALIAS = -1
 
 
 def alphazero_team_game_string(num_turns: Optional[int] = None) -> str:
+  """Return the OpenSpiel game string for the 2-team AlphaZero view.
+
+  Args:
+    num_turns: Number of battle turns; if ``None`` the value is read from
+      ``FLAGS.num_turns`` (defaulting to 5 if the flag is not yet parsed).
+
+  Returns:
+    Game string of the form ``"turn_battle_teams(num_turns=N)"``.
+  """
   if num_turns is None:
     try:
       num_turns = parse_num_turns()
@@ -51,14 +60,26 @@ def alphazero_team_game_string(num_turns: Optional[int] = None) -> str:
 
 
 def load_alphazero_team_game() -> pyspiel.Game:
+  """Load the ``turn_battle_teams`` game used by the C++ AlphaZero trainer."""
   return pyspiel.load_game(alphazero_team_game_string())
 
 
 def _repo_root() -> pathlib.Path:
+  """Return the repository root directory (four levels above this file)."""
   return pathlib.Path(__file__).resolve().parents[4]
 
 
 def find_az_binary() -> pathlib.Path:
+  """Locate the compiled ``alpha_zero_torch_example`` binary.
+
+  Searches the two most common CMake output locations under the repository root.
+
+  Returns:
+    Path to the executable.
+
+  Raises:
+    FileNotFoundError: If no executable is found in any candidate location.
+  """
   candidates = [
       _repo_root() / "build" / "examples" / "alpha_zero_torch_example",
       _repo_root() / "build" / "open_spiel" / "examples" /
@@ -128,6 +149,22 @@ class VpNetMlp(nn.Module):
 
 
 def _parse_model_config(run_dir: pathlib.Path) -> dict:
+  """Parse the VPNet architecture config from a C++ AlphaZero run directory.
+
+  Reads ``vpnet.pb`` which stores whitespace-separated integers/floats in the
+  order: channels, height, width, num_actions, nn_depth, nn_width, …, nn_model.
+
+  Args:
+    run_dir: Path to the directory produced by ``alpha_zero_torch_example``.
+
+  Returns:
+    Dict with keys ``"input_size"``, ``"num_actions"``, ``"nn_depth"``,
+    ``"nn_width"``, and ``"nn_model"``.
+
+  Raises:
+    FileNotFoundError: If ``vpnet.pb`` does not exist.
+    ValueError: If ``vpnet.pb`` contains fewer fields than expected.
+  """
   config_path = run_dir / "vpnet.pb"
   if not config_path.is_file():
     raise FileNotFoundError(f"Missing VPNet config at {config_path}")

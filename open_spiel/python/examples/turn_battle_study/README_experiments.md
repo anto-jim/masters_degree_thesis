@@ -6,6 +6,11 @@
 Comparative study of **AlphaZero**, **Deep CFR**, **NFSP**, and **QPG** on the
 `turn_battle` OpenSpiel game.
 
+**Related docs:** [Thesis docs hub](../../../../../master's%20degree%20docs/README.md) ·
+[THESIS_PLAN.md](../../../../../master's%20degree%20docs/THESIS_PLAN.md) ·
+[CODE_DOCUMENTATION.md](../../../../../master's%20degree%20docs/CODE_DOCUMENTATION.md) ·
+[VERIFICATION_REPORT.md](../../../../turn_battle_results/VERIFICATION_REPORT.md)
+
 ## Package layout
 
 | Module | Role |
@@ -21,7 +26,7 @@ Comparative study of **AlphaZero**, **Deep CFR**, **NFSP**, and **QPG** on the
 | `checkpoints.py` | Save/load trained agents |
 | `storage.py` / `report.py` / `aggregate.py` | Artifacts and LaTeX reports |
 
-Full reference: `master's degree docs/CODE_DOCUMENTATION.md`.
+Full reference: [`master's degree docs/CODE_DOCUMENTATION.md`](../../../../../master's%20degree%20docs/CODE_DOCUMENTATION.md).
 
 ## AlphaZero (C++ LibTorch)
 

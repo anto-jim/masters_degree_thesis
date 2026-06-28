@@ -29,6 +29,7 @@ FLAGS = flags.FLAGS
 
 
 def _num_turns() -> int:
+  """Return the number of turns configured via FLAGS."""
   return parse_num_turns()
 
 
@@ -38,6 +39,17 @@ def create_single_rl_agent(
     player_id: int,
     info_state_size: int,
 ):
+  """Instantiate a single RL agent for one player seat.
+
+  Args:
+    algorithm: Algorithm name (e.g. ``"qpg"``, ``"nfsp"``).
+    env: The RL environment used to query action/observation specs.
+    player_id: Seat index this agent will occupy.
+    info_state_size: Length of the flattened info-state vector.
+
+  Returns:
+    A PolicyGradient or NFSP agent configured for the given algorithm.
+  """
   algo = normalize_algorithm(algorithm)
   device = str(resolve_device(FLAGS.device))
   num_actions = env.action_spec()["num_actions"]
@@ -73,26 +85,34 @@ def create_single_rl_agent(
 
 def create_role_shared_rl_agents(
     algorithm: str, env: rl_environment.Environment) -> RoleSharedTeam:
-  """Four seat facades with role-relative obs; weights synced each episode."""
+  """Four seat facades sharing one defender and one attacker net per role."""
   role_size = role_relative_state_size(_num_turns())
+  defender = create_single_rl_agent(
+      algorithm, env, DEFENDER_CANON, role_size)
+  attacker = create_single_rl_agent(
+      algorithm, env, ATTACKER_CANON, role_size)
   facades = [
-      RoleSeatFacade(
-          0, create_single_rl_agent(algorithm, env, DEFENDER_CANON, role_size),
-          "defender"),
-      RoleSeatFacade(
-          1, create_single_rl_agent(algorithm, env, ATTACKER_CANON, role_size),
-          "attacker"),
-      RoleSeatFacade(
-          2, create_single_rl_agent(algorithm, env, DEFENDER_CANON, role_size),
-          "defender"),
-      RoleSeatFacade(
-          3, create_single_rl_agent(algorithm, env, ATTACKER_CANON, role_size),
-          "attacker"),
+      RoleSeatFacade(0, defender, "defender"),
+      RoleSeatFacade(1, attacker, "attacker"),
+      RoleSeatFacade(2, defender, "defender"),
+      RoleSeatFacade(3, attacker, "attacker"),
   ]
   return RoleSharedTeam(facades)
 
 
 def create_rl_agents(algorithm: str, env: rl_environment.Environment) -> List:
+  """Create one agent per player seat for the given algorithm.
+
+  Dispatches to role-shared training for algorithms in ROLE_SHARED_ALGOS,
+  otherwise returns a flat list of independent per-seat agents.
+
+  Args:
+    algorithm: Algorithm name selecting the learner type.
+    env: RL environment used to query action/observation specs.
+
+  Returns:
+    A RoleSharedTeam for role-shared algorithms, or a list of agents.
+  """
   algo = normalize_algorithm(algorithm)
   if algo in ROLE_SHARED_ALGOS:
     return create_role_shared_rl_agents(algo, env)

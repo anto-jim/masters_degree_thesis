@@ -22,15 +22,32 @@
 
 #include "open_spiel/spiel.h"
 
-// A 2-player sequential wrapper around turn_battle where each player controls
-// both members of their team. Team 0 acts for players 0 and 1; team 1 for 2
-// and 3. Within each battle turn the order is P0, P1, P2, P3.
+// turn_battle_teams — sequential 2-player team wrapper for turn_battle
+//
+// Converts the 4-player simultaneous turn_battle game into a 2-player
+// sequential game compatible with AlphaZero-style self-play training.
+// Each of the two "team" players (0 and 1) controls both members of its
+// team: team 0 acts for underlying players 0 and 1; team 1 acts for
+// underlying players 2 and 3.
+//
+// Within each battle turn the four member actions are gathered one at a
+// time in order (P0 → P1 → P2 → P3) via a sub-phase counter.  Only when
+// all four have been collected does the state flush them to the underlying
+// simultaneous game as a joint action.
+//
+// Observation layout (flat 1-D tensor):
+//   [underlying_obs | sub_phase_norm | member_parity | teammate_action_hint]
+// where the three extra scalars provide sub-phase context to the learner.
 
 namespace open_spiel {
 
 inline constexpr int kTurnBattleTeamsNumMembers = 4;
 inline constexpr int kTurnBattleTeamsExtraObs = 3;
 
+// Wraps a turn_battle State to present a 2-player sequential interface.
+// Internally tracks which of the four underlying members should act next
+// (sub_phase_) and buffers their chosen actions in pending_actions_ until a
+// full set of four can be committed to the underlying simultaneous state.
 class TurnBattleTeamsState : public State {
  public:
   TurnBattleTeamsState(std::shared_ptr<const Game> game,
@@ -53,10 +70,21 @@ class TurnBattleTeamsState : public State {
   std::unique_ptr<State> Clone() const override;
 
  protected:
+  // Records action_id for the current sub-phase member and advances the
+  // sub-phase counter.  When all four members have chosen, flushes the
+  // buffered actions to the underlying state as a simultaneous joint action
+  // and resets the counter to 0.
   void DoApplyAction(Action action_id) override;
 
  private:
+  // Returns the index (0–3) of the underlying player whose action is
+  // needed next, derived directly from sub_phase_.
   int UnderlyingMember() const;
+
+  // Fills values with the underlying observation for the active member
+  // followed by three sub-phase context scalars: normalised phase index,
+  // member parity within the team, and the teammate's previous action
+  // (normalised) or -1 when not yet available.
   void WriteObservation(Player player, absl::Span<float> values) const;
 
   std::unique_ptr<State> underlying_;
@@ -64,6 +92,10 @@ class TurnBattleTeamsState : public State {
   std::array<Action, kTurnBattleTeamsNumMembers> pending_actions_;
 };
 
+// 2-player sequential zero-sum game that wraps the 4-player turn_battle game.
+// Presents standard OpenSpiel Game metadata (NumPlayers, utility bounds,
+// tensor shapes) and delegates action enumeration and state construction
+// to the underlying turn_battle game instance.
 class TurnBattleTeamsGame : public Game {
  public:
   explicit TurnBattleTeamsGame(const GameParameters& params);
