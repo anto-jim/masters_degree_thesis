@@ -40,6 +40,7 @@ from open_spiel.python.examples.turn_battle_study.config import (
     THESIS_ALGORITHMS,
     TRAINABLE_ALGOS,
     normalize_algorithm,
+    validate_algorithm,
 )
 from open_spiel.python.examples.turn_battle_study.device import (
     device_label,
@@ -106,7 +107,7 @@ flags.DEFINE_integer("mcts_simulations", 50, "MCTS simulations per move.")
 flags.DEFINE_float("mcts_uct_c", 2.0, "MCTS UCT exploration constant.")
 flags.DEFINE_integer("mcts_rollouts", 1, "Random rollouts per MCTS evaluation.")
 
-# --- AlphaZero (Python) flags ---
+# --- AlphaZero flags (C++ subprocess via az_cpp.py) ---
 flags.DEFINE_integer("az_replay_buffer_size", 4096, "AlphaZero replay buffer.")
 flags.DEFINE_integer("az_batch_size", 64, "AlphaZero batch size.")
 flags.DEFINE_float("az_learning_rate", 1e-3, "AlphaZero learning rate.")
@@ -184,6 +185,7 @@ def run_compare(rng: np.random.RandomState) -> None:
   output_dir = ensure_output_dir(FLAGS.output_dir)
   rows = []
   for algo in map(normalize_algorithm, FLAGS.algorithms):
+    validate_algorithm(algo)
     row = {"algorithm": algo}
     if algo in TRAINABLE_ALGOS:
       agents, log, _artifact = train_algorithm(
@@ -194,7 +196,7 @@ def run_compare(rng: np.random.RandomState) -> None:
     elif algo in BOT_ALGOS:
       matchup = evaluate_team_matchup(algo, "random", FLAGS.eval_episodes, rng)
     else:
-      continue
+      raise ValueError(f"Unsupported algorithm '{algo}' in compare mode.")
     row.update(matchup.summary())
     row["opponent"] = "random"
     rows.append(row)
@@ -213,7 +215,7 @@ def run_train(rng: np.random.RandomState) -> None:
     rng: NumPy RandomState for training and evaluation reproducibility.
   """
   output_dir = ensure_output_dir(FLAGS.output_dir)
-  algo = normalize_algorithm(FLAGS.algorithm)
+  algo = validate_algorithm(FLAGS.algorithm, for_training=True)
   agents, log, _artifact = train_algorithm(
       algo, FLAGS.train_episodes, FLAGS.eval_every, FLAGS.eval_episodes, rng)
   save_training_log(log, output_dir)
@@ -232,10 +234,12 @@ def run_evaluate(rng: np.random.RandomState) -> None:
     rng: NumPy RandomState for episode-sampling reproducibility.
   """
   output_dir = ensure_output_dir(FLAGS.output_dir)
+  team1 = validate_algorithm(FLAGS.team1_algo)
+  team2 = validate_algorithm(FLAGS.team2_algo)
   stats = evaluate_team_matchup(
-      FLAGS.team1_algo, FLAGS.team2_algo, FLAGS.eval_episodes, rng).summary()
-  stats["team1_algo"] = normalize_algorithm(FLAGS.team1_algo)
-  stats["team2_algo"] = normalize_algorithm(FLAGS.team2_algo)
+      team1, team2, FLAGS.eval_episodes, rng).summary()
+  stats["team1_algo"] = team1
+  stats["team2_algo"] = team2
   print(json.dumps(stats, indent=2))
   path = os.path.join(
       output_dir,

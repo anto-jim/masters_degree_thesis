@@ -11,7 +11,7 @@ from open_spiel.python import rl_environment
 from open_spiel.python.bots import uniform_random
 from open_spiel.python.examples.turn_battle_study.config import (
     DEFENDER_SEATS,
-    EVAL_FALLBACK_ALGOS,
+    EVAL_BOT_ALIASES,
     normalize_algorithm,
 )
 from open_spiel.python.examples.turn_battle_study.game import load_turn_based_game
@@ -155,7 +155,7 @@ def create_pyspiel_bot(
 
   Args:
     algorithm: Bot algorithm name (``"random"``, ``"mcts"``,
-      ``"heuristic"``, or any key in EVAL_FALLBACK_ALGOS).
+      ``"heuristic"``, or any key in EVAL_BOT_ALIASES).
     game: The pyspiel.Game the bot will play.
     player_id: Seat index this bot will occupy.
     rng: Random-number generator for stochastic decisions.
@@ -179,9 +179,9 @@ def create_pyspiel_bot(
         pyspiel.ChildSelectionPolicy.PUCT)
   if algo == "heuristic":
     return HeuristicBattleBot(player_id, rng)
-  if algo in EVAL_FALLBACK_ALGOS:
+  if algo in EVAL_BOT_ALIASES:
     return create_pyspiel_bot(
-        EVAL_FALLBACK_ALGOS[algo], game, player_id, rng, for_mcts=for_mcts)
+        EVAL_BOT_ALIASES[algo], game, player_id, rng, for_mcts=for_mcts)
   raise ValueError(f"Algorithm '{algorithm}' is not a pyspiel bot.")
 
 

@@ -13,6 +13,7 @@ from open_spiel.python.examples.turn_battle_study.config import (
     BOT_ALGOS,
     TRAINABLE_ALGOS,
     normalize_algorithm,
+    validate_algorithm,
 )
 
 FLAGS = flags.FLAGS
@@ -376,7 +377,7 @@ def run_round_robin(
       each containing ``"algorithm"``, ``"round_robin_points"``, and
       ``"avg_pairwise_win_rate"``.
   """
-  algos = [normalize_algorithm(a) for a in algorithms]
+  algos = [validate_algorithm(a) for a in algorithms]
   pairs: List[Dict] = []
   matrix: Dict[str, Dict[str, float]] = {a: {b: 0.0 for b in algos} for a in algos}
   points = {a: 0.0 for a in algos}
@@ -444,9 +445,9 @@ def run_full_tournament(
 
   Returns:
     A dict containing the full tournament payload (seeding scores, round-robin
-    results, bracket matches, and the champion key).
+    results,     bracket matches, and the champion key).
   """
-  algos = [normalize_algorithm(a) for a in algorithms]
+  algos = [validate_algorithm(a) for a in algorithms]
   retrain_algorithms = getattr(FLAGS, "retrain_algorithms", None) or None
   if train_episodes <= 0:
     trained, seeds = load_all(algos, output_dir, eval_episodes, rng)

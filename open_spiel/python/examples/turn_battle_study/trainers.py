@@ -23,7 +23,10 @@ from open_spiel.python.examples.turn_battle_study.bots import (
     DeepCFRPolicyBot,
     bots_to_adapters,
 )
-from open_spiel.python.examples.turn_battle_study.config import normalize_algorithm
+from open_spiel.python.examples.turn_battle_study.config import (
+    normalize_algorithm,
+    validate_algorithm,
+)
 from open_spiel.python.examples.turn_battle_study.device import (
     device_label,
     resolve_cpp_az_devices,
@@ -264,7 +267,7 @@ def train_algorithm(
     DeepCFRSolver instance for algorithms that need it for checkpointing,
     and None for plain RL algorithms.
   """
-  key = normalize_algorithm(algo)
+  key = validate_algorithm(algo, for_training=True)
   if key == "alphazero":
     return train_alphazero(episodes, eval_every, eval_eps, rng)
   if key == "deep_cfr":

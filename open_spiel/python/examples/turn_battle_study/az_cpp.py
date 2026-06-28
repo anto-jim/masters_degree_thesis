@@ -69,6 +69,29 @@ def _repo_root() -> pathlib.Path:
   return pathlib.Path(__file__).resolve().parents[4]
 
 
+def _native_lib_paths() -> List[str]:
+  """Directories needed by the C++ AlphaZero binary at runtime."""
+  root = _repo_root()
+  paths: List[str] = []
+  libtorch_lib = root / "open_spiel" / "libtorch" / "libtorch" / "lib"
+  if libtorch_lib.is_dir():
+    paths.append(str(libtorch_lib))
+  local_cuda = root / ".local" / "root" / "usr" / "lib" / "x86_64-linux-gnu"
+  if local_cuda.is_dir():
+    paths.append(str(local_cuda))
+  return paths
+
+
+def _subprocess_env() -> dict:
+  """Copy of ``os.environ`` with LibTorch/CUDA runtime paths prepended."""
+  env = os.environ.copy()
+  extra = _native_lib_paths()
+  if extra:
+    prev = env.get("LD_LIBRARY_PATH", "")
+    env["LD_LIBRARY_PATH"] = ":".join(extra + ([prev] if prev else []))
+  return env
+
+
 def find_az_binary() -> pathlib.Path:
   """Locate the compiled ``alpha_zero_torch_example`` binary.
 
@@ -331,12 +354,7 @@ class AlphaZeroCpp:
     print(f"  launching C++ AlphaZero: {' '.join(cmd)}")
 
     log_path = run_dir / "cpp_train.log"
-    libtorch_lib = _repo_root() / "open_spiel" / "libtorch" / "libtorch" / "lib"
-    env = os.environ.copy()
-    if libtorch_lib.is_dir():
-      prev = env.get("LD_LIBRARY_PATH", "")
-      env["LD_LIBRARY_PATH"] = (
-          f"{libtorch_lib}:{prev}" if prev else str(libtorch_lib))
+    env = _subprocess_env()
     with open(log_path, "w", encoding="utf-8") as log_fp:
       proc = subprocess.Popen(
           cmd, stdout=log_fp, stderr=subprocess.STDOUT, text=True, env=env)

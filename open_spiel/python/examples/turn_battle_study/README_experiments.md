@@ -178,7 +178,12 @@ turn_battle_results/
 
 ## Default Thesis Configuration
 
-See `experiments/configs/thesis_default.json` for the canonical flag snapshot.
+See `experiments/configs/thesis_default.json` for the canonical flag snapshot
+(`num_turns=10`, seeds 42–44).
+
+**Note:** Prior `production_final/` results at `num_turns=5` were removed during
+the thesis refactor. Run `--mode=multi_seed` to regenerate at `num_turns=10`
+(see `turn_battle_results/VERIFICATION_REPORT.md`).
 
 ## Checkpoints
 
@@ -207,13 +212,13 @@ agents = load_trained_agents(
 
 ### Partial retrain (reuse checkpoints)
 
-When only some algorithms need retraining (e.g. after a pipeline change to
-NFSP/QPG), copy unchanged checkpoints into each seed directory, then:
+When only some algorithms need retraining after a pipeline change, copy unchanged
+checkpoints into each seed directory, then:
 
 ```bash
 python open_spiel/python/examples/turn_battle_marl_study.py \
   --mode=multi_seed \
-  --results_root=turn_battle_results/production_final \
+  --results_root=turn_battle_results \
   --seeds=42,43,44 \
   --train_episodes=300 \
   --retrain_algorithms=nfsp,qpg

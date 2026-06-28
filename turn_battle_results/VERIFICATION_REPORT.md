@@ -15,7 +15,7 @@ From the repository root (GPU recommended):
 ```bash
 python open_spiel/python/examples/turn_battle_marl_study.py \
   --mode=multi_seed \
-  --results_root=turn_battle_results/production_final \
+  --results_root=turn_battle_results \
   --seeds=42,43,44 \
   --train_episodes=300 \
   --eval_episodes=50 \
@@ -25,7 +25,7 @@ python open_spiel/python/examples/turn_battle_marl_study.py \
   --device=auto
 ```
 
-Outputs land under `turn_battle_results/production_final/seed_*/` (JSON, CSV, figures, checkpoints). Sync figures to the LaTeX thesis with `make sync-figures` in `master's degree docs/thesis/`.
+Outputs land under `turn_battle_results/seed_*/` (JSON, CSV, figures, checkpoints). Sync figures to the LaTeX thesis with `make sync-figures` in `master's degree docs/thesis/`.
 
 ## Deep CFR tuning
 
