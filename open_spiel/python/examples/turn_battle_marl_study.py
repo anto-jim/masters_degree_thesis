@@ -62,7 +62,7 @@ from open_spiel.python.examples.turn_battle_study.trainers import train_algorith
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string("game", "turn_battle", "OpenSpiel game string.")
-flags.DEFINE_string("game_params", "num_turns=5", "Comma-separated game parameters.")
+flags.DEFINE_string("game_params", "num_turns=10", "Comma-separated game parameters.")
 flags.DEFINE_enum(
     "mode", "tournament",
     ["train", "evaluate", "compare", "tournament", "multi_seed", "aggregate"],
@@ -147,7 +147,7 @@ flags.DEFINE_boolean(
 flags.DEFINE_boolean(
     "dcfr_reinitialize_advantage_networks", False,
     "Reset advantage nets each iteration (canonical Deep CFR; off for short budgets).")
-flags.DEFINE_integer("dcfr_max_turns", 5, "Deep CFR max turns (match game_params).")
+flags.DEFINE_integer("dcfr_max_turns", 10, "Deep CFR max turns (match game_params).")
 
 # --- RL mixed-training flags ---
 flags.DEFINE_float(

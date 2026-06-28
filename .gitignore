@@ -7,7 +7,8 @@ checkpoint*
 .local/
 
 # Turn Battle — scratch/local experiment outputs
-# Canonical published results live in turn_battle_results/production_final/
+# Regenerated results go under production_final/ (gitignored; re-run multi_seed)
+turn_battle_results/production_final/
 turn_battle_results/seed_*/
 turn_battle_results/eval_*.json
 turn_battle_results/*.log

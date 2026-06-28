@@ -19,7 +19,7 @@ def parse_game_params(params_str: str) -> Dict[str, object]:
   silently skipped.
 
   Args:
-    params_str: Parameter string such as ``"num_turns=5,damage_cap=true"``.
+    params_str: Parameter string such as ``"num_turns=10"``.
 
   Returns:
     A dict mapping parameter names to their Python-typed values, or an empty
@@ -47,7 +47,7 @@ def parse_game_params(params_str: str) -> Dict[str, object]:
 def parse_num_turns(dcfr_cap: bool = False) -> int:
   """Return num_turns from game_params, optionally capped by dcfr_max_turns."""
   params = parse_game_params(FLAGS.game_params)
-  num_turns = int(params.get("num_turns", 5))
+  num_turns = int(params.get("num_turns", 10))
   if dcfr_cap:
     return min(num_turns, FLAGS.dcfr_max_turns)
   return num_turns
@@ -57,7 +57,7 @@ def inner_game_string() -> str:
   """Return the pyspiel game string for the inner simultaneous game.
 
   Builds the string from ``FLAGS.game`` and any parameters in
-  ``FLAGS.game_params``, e.g. ``"turn_battle(num_turns=5)"``.
+  ``FLAGS.game_params``, e.g. ``"turn_battle(num_turns=10)"``.
   """
   params = parse_game_params(FLAGS.game_params)
   if not params:

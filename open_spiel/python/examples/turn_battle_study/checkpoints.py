@@ -10,10 +10,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from open_spiel.python.examples.turn_battle_study.agents import (
-    create_legacy_rl_agents,
-    create_rl_agents,
-)
+from open_spiel.python.examples.turn_battle_study.agents import create_rl_agents
 from open_spiel.python.examples.turn_battle_study.az_cpp import AlphaZeroCpp
 from open_spiel.python.examples.turn_battle_study.bots import bots_to_adapters
 from open_spiel.python.examples.turn_battle_study.config import (
@@ -33,7 +30,6 @@ from open_spiel.python.pytorch import nfsp
 from open_spiel.python.pytorch import policy_gradient
 
 _ROLE_SELECTION_FILE = "role_selection.json"
-_LEGACY_PLAYER_PREFIX = "player_"
 
 
 def _save_nfsp(agent: nfsp.NFSP, checkpoint_dir: pathlib.Path) -> None:
@@ -237,16 +233,7 @@ def save_trained_checkpoint(
     _save_role_shared(agents, checkpoint_dir)
     return
 
-  root = pathlib.Path(checkpoint_dir)
-  root.mkdir(parents=True, exist_ok=True)
-  for player_id, agent in enumerate(agents):
-    player_dir = root / f"{_LEGACY_PLAYER_PREFIX}{player_id}"
-    if isinstance(agent, nfsp.NFSP):
-      _save_nfsp(agent, player_dir)
-    elif isinstance(agent, policy_gradient.PolicyGradient):
-      _save_role_agent(agent, player_dir)
-    else:
-      raise TypeError(f"Unsupported legacy agent type: {type(agent)}")
+  raise ValueError(f"Unsupported checkpoint algorithm: {key}")
 
 
 def load_trained_agents(
@@ -272,21 +259,5 @@ def load_trained_agents(
     if role_def.is_dir():
       return _load_role_shared(key, checkpoint_dir, rng)
 
-  root = pathlib.Path(checkpoint_dir)
-  legacy_players = sorted(root.glob(f"{_LEGACY_PLAYER_PREFIX}*"))
-  if legacy_players:
-    env = make_rl_environment()
-    agents = create_legacy_rl_agents(key, env)
-    for player_dir in legacy_players:
-      player_id = int(player_dir.name.split("_")[-1])
-      agent = agents[player_id]
-      if isinstance(agent, nfsp.NFSP):
-        _load_nfsp(agent, player_dir)
-      elif isinstance(agent, policy_gradient.PolicyGradient):
-        agent.restore(str(player_dir))
-      else:
-        raise TypeError(f"Unsupported legacy agent type: {type(agent)}")
-    return agents
-
   raise FileNotFoundError(
-      f"No supported checkpoint layout under {checkpoint_dir} for {key}.")
+      f"No role-shared checkpoint under {checkpoint_dir} for {key}.")

@@ -7,11 +7,7 @@ TEAM2_PLAYERS = (2, 3)
 DEFENDER_SEATS = (0, 2)
 ATTACKER_SEATS = (1, 3)
 
-ALGORITHM_ALIASES: dict[str, str] = {}
-
-TRAINABLE_ALGOS = frozenset({
-    "q_learning", "qpg", "a2c", "rpg", "nfsp", "alphazero", "deep_cfr",
-})
+TRAINABLE_ALGOS = frozenset({"alphazero", "deep_cfr", "nfsp", "qpg"})
 # NFSP/QPG train shared defender + attacker policies (see role_shared.py).
 ROLE_SHARED_ALGOS = frozenset({"nfsp", "qpg"})
 # Evaluated via turn-based bot play (search/policy bots), not the RL stack.
@@ -30,8 +26,8 @@ DEFAULT_SEEDS = [42, 43, 44]
 
 
 def normalize_algorithm(name: str) -> str:
-  """Normalize an algorithm name by stripping whitespace, lowercasing, and resolving aliases."""
-  return ALGORITHM_ALIASES.get(name.strip().lower(), name.strip().lower())
+  """Normalize an algorithm name by stripping whitespace and lowercasing."""
+  return name.strip().lower()
 
 
 def effective_bot_algorithm(name: str) -> str:

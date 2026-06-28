@@ -49,7 +49,7 @@ const GameType kGameType{
     /*provides_information_state_tensor=*/true,
     /*provides_observation_string=*/true,
     /*provides_observation_tensor=*/true,
-    /*parameter_specification=*/{{"num_turns", GameParameter(5)}},
+    /*parameter_specification=*/{{"num_turns", GameParameter(10)}},
     /*default_loadable=*/true,
     /*provides_factored_observation_string=*/false,
 };

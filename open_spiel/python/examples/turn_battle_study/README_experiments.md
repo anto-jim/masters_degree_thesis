@@ -190,7 +190,6 @@ Trained models are saved under `checkpoints/<algorithm>/` when
 | AlphaZero | C++ run dir: `vpnet.pb`, `checkpoint--1.pt`, `config.json`, `metadata.json`, … |
 | Deep CFR | `model.pt` (policy + advantage nets + iteration) |
 | NFSP / QPG (role-shared) | `role_defender/`, `role_attacker/`, optional `role_selection.json` |
-| NFSP / QPG (legacy) | `player_0/` … `player_3/` per-seat weights |
 
 NFSP uses custom save/load helpers (`model_state_dict` keys) because OpenSpiel's
 built-in `NFSP.save` / `NFSP.restore` keys do not match.

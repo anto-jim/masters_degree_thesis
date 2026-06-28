@@ -253,8 +253,7 @@ def train_algorithm(
   """Dispatch training to the correct backend for the given algorithm.
 
   Args:
-    algo: Algorithm name (e.g. 'alphazero', 'deep_cfr', 'nfsp', 'qpg', or any
-      other RL algorithm accepted by create_rl_agents).
+    algo: Algorithm name (``alphazero``, ``deep_cfr``, ``nfsp``, or ``qpg``).
     episodes: Total training episodes or CFR iterations.
     eval_every: Evaluate win rate every this many steps.
     eval_eps: Number of episodes per evaluation rollout.
@@ -273,16 +272,4 @@ def train_algorithm(
   if key in {"nfsp", "qpg"}:
     return _train_rl(key, episodes, eval_every, eval_eps, rng)
 
-  env = make_rl_environment(include_full_state=FLAGS.train_bot_mix > 0)
-  game = load_game()
-  agents = create_rl_agents(algo, env)
-  log = TrainingLog(algorithm=key)
-  for ep in range(episodes):
-    play_training_episode_rl(env, agents, rng, ep, game)
-    if ep > 0 and ep % eval_every == 0:
-      win, loss = _fixed_role_win_rate(key, agents, eval_eps, rng)
-      _log_checkpoint(log, ep, win, loss, key)
-  if not log.episodes or log.episodes[-1] != episodes:
-    win, loss = _fixed_role_win_rate(key, agents, eval_eps, rng)
-    _log_checkpoint(log, episodes, win, loss, key)
-  return agents, log, None
+  raise ValueError(f"Unsupported trainable algorithm: {key}")

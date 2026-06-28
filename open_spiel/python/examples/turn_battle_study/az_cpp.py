@@ -46,7 +46,7 @@ def alphazero_team_game_string(num_turns: Optional[int] = None) -> str:
 
   Args:
     num_turns: Number of battle turns; if ``None`` the value is read from
-      ``FLAGS.num_turns`` (defaulting to 5 if the flag is not yet parsed).
+      ``FLAGS.num_turns`` (defaulting to 10 if the flag is not yet parsed).
 
   Returns:
     Game string of the form ``"turn_battle_teams(num_turns=N)"``.
@@ -55,7 +55,7 @@ def alphazero_team_game_string(num_turns: Optional[int] = None) -> str:
     try:
       num_turns = parse_num_turns()
     except AttributeError:
-      num_turns = 5
+      num_turns = 10
   return f"turn_battle_teams(num_turns={num_turns})"
 
 

@@ -43,7 +43,7 @@
 namespace open_spiel {
 namespace turn_battle {
 
-inline constexpr int kDefaultNumTurns = 15;
+inline constexpr int kDefaultNumTurns = 10;
 inline constexpr int kNumPlayers = 4;
 inline constexpr int kMaxPossibleMoves = 5;
 inline constexpr int kMaxHealthPoints = 3;

@@ -1,23 +1,20 @@
-"""RL agent factories."""
+"""RL agent factories for thesis algorithms (NFSP, QPG)."""
 
 from __future__ import annotations
-
-from typing import List
 
 from absl import flags
 
 from open_spiel.python import rl_environment
-from open_spiel.python import rl_tools
-from open_spiel.python.algorithms import tabular_qlearner
 from open_spiel.python.examples.turn_battle_study.config import (
     ROLE_SHARED_ALGOS,
+    THESIS_ALGORITHMS,
     normalize_algorithm,
 )
 from open_spiel.python.examples.turn_battle_study.device import resolve_device
 from open_spiel.python.examples.turn_battle_study.game import parse_num_turns
 from open_spiel.python.examples.turn_battle_study.role_shared import (
-    DEFENDER_CANON,
     ATTACKER_CANON,
+    DEFENDER_CANON,
     RoleSeatFacade,
     RoleSharedTeam,
     role_relative_state_size,
@@ -39,10 +36,10 @@ def create_single_rl_agent(
     player_id: int,
     info_state_size: int,
 ):
-  """Instantiate a single RL agent for one player seat.
+  """Instantiate a single RL agent for one player seat (NFSP or QPG only).
 
   Args:
-    algorithm: Algorithm name (e.g. ``"qpg"``, ``"nfsp"``).
+    algorithm: Algorithm name (``"qpg"`` or ``"nfsp"``).
     env: The RL environment used to query action/observation specs.
     player_id: Seat index this agent will occupy.
     info_state_size: Length of the flattened info-state vector.
@@ -54,7 +51,7 @@ def create_single_rl_agent(
   device = str(resolve_device(FLAGS.device))
   num_actions = env.action_spec()["num_actions"]
 
-  if algo in {"qpg", "a2c", "rpg"}:
+  if algo == "qpg":
     return policy_gradient.PolicyGradient(
         player_id=player_id, info_state_size=info_state_size,
         num_actions=num_actions, loss_str=algo,
@@ -100,49 +97,22 @@ def create_role_shared_rl_agents(
   return RoleSharedTeam(facades)
 
 
-def create_rl_agents(algorithm: str, env: rl_environment.Environment) -> List:
-  """Create one agent per player seat for the given algorithm.
-
-  Dispatches to role-shared training for algorithms in ROLE_SHARED_ALGOS,
-  otherwise returns a flat list of independent per-seat agents.
+def create_rl_agents(algorithm: str, env: rl_environment.Environment):
+  """Create role-shared agents for NFSP or QPG.
 
   Args:
-    algorithm: Algorithm name selecting the learner type.
+    algorithm: Algorithm name (must be in ``ROLE_SHARED_ALGOS``).
     env: RL environment used to query action/observation specs.
 
   Returns:
-    A RoleSharedTeam for role-shared algorithms, or a list of agents.
+    A RoleSharedTeam with shared defender and attacker policies.
+
+  Raises:
+    ValueError: If *algorithm* is not NFSP or QPG.
   """
   algo = normalize_algorithm(algorithm)
-  if algo in ROLE_SHARED_ALGOS:
-    return create_role_shared_rl_agents(algo, env)
-
-  info_state_size = env.observation_spec()["info_state"][0]
-
-  if algo == "q_learning":
-    schedule = rl_tools.LinearSchedule(0.3, 0.05, FLAGS.train_episodes)
-    return [
-        tabular_qlearner.QLearner(
-            player_id=p, num_actions=env.action_spec()["num_actions"],
-            step_size=0.2, epsilon_schedule=schedule, discount_factor=1.0)
-        for p in range(env.num_players)
-    ]
-
-  if algo in {"qpg", "a2c", "rpg", "nfsp"}:
-    return [
-        create_single_rl_agent(algo, env, p, info_state_size)
-        for p in range(env.num_players)
-    ]
-
-  raise ValueError(f"Algorithm '{algorithm}' has no RL agent factory.")
-
-
-def create_legacy_rl_agents(
-    algorithm: str, env: rl_environment.Environment) -> List:
-  """Four independent per-seat agents (pre-role-sharing checkpoints)."""
-  algo = normalize_algorithm(algorithm)
-  info_state_size = env.observation_spec()["info_state"][0]
-  return [
-      create_single_rl_agent(algo, env, p, info_state_size)
-      for p in range(env.num_players)
-  ]
+  if algo not in ROLE_SHARED_ALGOS:
+    raise ValueError(
+        f"Algorithm '{algorithm}' has no RL agent factory; "
+        f"thesis algorithms are: {', '.join(THESIS_ALGORITHMS)}.")
+  return create_role_shared_rl_agents(algo, env)
