@@ -363,6 +363,11 @@ def _pairwise_win_rate(
     orientations and *stats* carries the combined figures plus each
     orientation's raw summary.
   """
+  # Constraint: assumes an even eval_episodes. An odd count silently plays
+  # one episode fewer than requested, since each orientation gets the floored
+  # half. The canonical campaign uses 50, so this never bit; left as-is
+  # deliberately so the committed code stays the code that produced the
+  # committed numbers.
   half = max(1, eval_episodes // 2)
   forward = evaluate_team_matchup(
       algo_a, algo_b, half, rng,

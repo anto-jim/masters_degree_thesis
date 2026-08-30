@@ -83,6 +83,13 @@ def _time_step_from_turn_based_state(state: pyspiel.State) -> rl_environment.Tim
   # The RL networks are sized for the canonical num_turns game. A width
   # mismatch here means the state comes from a differently sized game, which
   # would make the match meaningless; fail loudly instead of reshaping it.
+  #
+  # Constraint: this duplicates the info-state tensor layout (public + private
+  # + one joint action per turn) rather than reading
+  # information_state_tensor_size() off the game, so it must be kept in step
+  # with the C++ observer by hand. Left as-is deliberately: this is the code
+  # that produced the published results, and rewriting evaluation internals
+  # afterwards would break that correspondence.
   expected_size = 9 + 2 + parse_num_turns() * 4
   for tensor in info_state:
     if len(tensor) != expected_size:
