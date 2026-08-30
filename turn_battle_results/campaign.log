@@ -1,0 +1,244 @@
+=== campaign start 2026-08-29T19:54:15+02:00 pid=32550 ===
+Optional module pokerkit_wrapper was not importable: No module named 'pokerkit'
+Game: turn_battle, players=4
+Train episodes per algorithm: 300
+Training device: cuda (NVIDIA GeForce RTX 3060 Ti)
+Running 3 seeds: [42, 43, 44] (train_episodes=300)
+
+========== Seed 42 -> turn_battle_results_v2/seed_42 ==========
+=== Training alphazero (300 episodes) ===
+  backend: C++ LibTorch AlphaZero (turn_battle_teams 2-player view) on cuda (NVIDIA GeForce RTX 3060 Ti) (train --devices=cuda:0)
+  launching C++ AlphaZero: /home/anto/Projects/masters_degree_thesis/build/examples/alpha_zero_torch_example --game=turn_battle_teams(num_turns=5) --path=turn_battle_results_v2/seed_42/az_cpp_run --nn_model=mlp --nn_width=128 --nn_depth=2 --learning_rate=0.001 --weight_decay=0.0001 --train_batch_size=64 --replay_buffer_size=4096 --replay_buffer_reuse=3 --checkpoint_freq=100 --uct_c=2.0 --max_simulations=50 --temperature=1.0 --temperature_drop=4 --actors=2 --evaluators=1 --eval_levels=3 --evaluation_window=50 --devices=cuda:0 --max_steps=300 --seed=42
+[train alphazero] step 51: win=0.680
+[train alphazero] step 102: win=0.740
+[train alphazero] step 158: win=0.560
+[train alphazero] step 211: win=0.740
+[train alphazero] step 261: win=0.700
+[train alphazero] step 300: win=0.760
+  checkpoint saved: turn_battle_results_v2/seed_42/checkpoints/alphazero
+  seed score vs random: 0.900
+=== Training deep_cfr (300 episodes) ===
+  backend: PyTorch DeepCFRSolver on cuda (NVIDIA GeForce RTX 3060 Ti) (traversals=10, batch=32)
+[train deep_cfr] step 50: win=0.220
+[train deep_cfr] step 100: win=0.360
+[train deep_cfr] step 150: win=0.340
+[train deep_cfr] step 200: win=0.260
+[train deep_cfr] step 250: win=0.300
+[train deep_cfr] step 300: win=0.300
+  checkpoint saved: turn_battle_results_v2/seed_42/checkpoints/deep_cfr
+  seed score vs random: 0.220
+=== Training nfsp (300 episodes) ===
+  backend: PyTorch nfsp on cuda (NVIDIA GeForce RTX 3060 Ti) (bot_mix=50%, opponent=mixed, role-shared)
+I0829 22:04:43.008214 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+[train nfsp] step 50: win=0.460
+[train nfsp] step 100: win=0.320
+[train nfsp] step 150: win=0.500
+[train nfsp] step 200: win=0.340
+[train nfsp] step 250: win=0.380
+[train nfsp] step 300: win=0.200
+  role selection: defender seat 0, attacker seat 3 (eval win=0.500)
+  checkpoint saved: turn_battle_results_v2/seed_42/checkpoints/nfsp
+  seed score vs random: 0.120
+=== Training qpg (300 episodes) ===
+  backend: PyTorch qpg on cuda (NVIDIA GeForce RTX 3060 Ti) (bot_mix=50%, opponent=mixed, role-shared)
+I0829 22:04:46.846061 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+/home/anto/Projects/masters_degree_thesis/open_spiel/python/pytorch/policy_gradient.py:442: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at /pytorch/torch/csrc/autograd/python_variable_indexing.cpp:347.)
+  value_predictions = q_values[list(action_indices)]
+[train qpg] step 50: win=0.380
+[train qpg] step 100: win=0.400
+[train qpg] step 150: win=0.320
+[train qpg] step 200: win=0.420
+[train qpg] step 250: win=0.340
+[train qpg] step 300: win=0.440
+  role selection: defender seat 0, attacker seat 1 (eval win=0.417)
+  checkpoint saved: turn_battle_results_v2/seed_42/checkpoints/qpg
+  seed score vs random: 0.460
+=== Baseline reference phase ===
+  baseline alphazero vs random: 0.760-0.100
+  baseline alphazero vs heuristic: 0.700-0.060
+  baseline alphazero vs mcts: 0.500-0.340
+  baseline deep_cfr vs random: 0.320-0.400
+  baseline deep_cfr vs heuristic: 0.260-0.440
+  baseline deep_cfr vs mcts: 0.040-0.740
+  baseline nfsp vs random: 0.260-0.400
+  baseline nfsp vs heuristic: 0.200-0.460
+  baseline nfsp vs mcts: 0.000-0.800
+  baseline qpg vs random: 0.380-0.320
+  baseline qpg vs heuristic: 0.440-0.340
+  baseline qpg vs mcts: 0.040-0.800
+=== Round-robin phase ===
+RR: alphazero vs deep_cfr -> 0.80-0.00
+RR: alphazero vs nfsp -> 0.88-0.02
+RR: alphazero vs qpg -> 0.88-0.00
+RR: deep_cfr vs nfsp -> 0.38-0.24
+RR: deep_cfr vs qpg -> 0.08-0.52
+I0829 22:06:17.619580 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+I0829 22:06:17.786181 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+RR: nfsp vs qpg -> 0.16-0.42
+=== Bracket phase ===
+R1: alphazero vs qpg -> alphazero (0.80-0.02)
+R1: deep_cfr vs nfsp -> nfsp (0.34-0.40)
+R2: alphazero vs nfsp -> alphazero (0.92-0.00)
+Champion: alphazero
+Saved tournament to turn_battle_results_v2/seed_42/tournament_results.json
+
+========== Seed 43 -> turn_battle_results_v2/seed_43 ==========
+=== Training alphazero (300 episodes) ===
+  backend: C++ LibTorch AlphaZero (turn_battle_teams 2-player view) on cuda (NVIDIA GeForce RTX 3060 Ti) (train --devices=cuda:0)
+  launching C++ AlphaZero: /home/anto/Projects/masters_degree_thesis/build/examples/alpha_zero_torch_example --game=turn_battle_teams(num_turns=5) --path=turn_battle_results_v2/seed_43/az_cpp_run --nn_model=mlp --nn_width=128 --nn_depth=2 --learning_rate=0.001 --weight_decay=0.0001 --train_batch_size=64 --replay_buffer_size=4096 --replay_buffer_reuse=3 --checkpoint_freq=100 --uct_c=2.0 --max_simulations=50 --temperature=1.0 --temperature_drop=4 --actors=2 --evaluators=1 --eval_levels=3 --evaluation_window=50 --devices=cuda:0 --max_steps=300 --seed=43
+[train alphazero] step 55: win=0.680
+[train alphazero] step 106: win=0.720
+[train alphazero] step 160: win=0.760
+[train alphazero] step 213: win=0.720
+[train alphazero] step 265: win=0.740
+[train alphazero] step 300: win=0.820
+  checkpoint saved: turn_battle_results_v2/seed_43/checkpoints/alphazero
+  seed score vs random: 0.820
+=== Training deep_cfr (300 episodes) ===
+  backend: PyTorch DeepCFRSolver on cuda (NVIDIA GeForce RTX 3060 Ti) (traversals=10, batch=32)
+[train deep_cfr] step 50: win=0.420
+[train deep_cfr] step 100: win=0.400
+[train deep_cfr] step 150: win=0.380
+[train deep_cfr] step 200: win=0.360
+[train deep_cfr] step 250: win=0.340
+[train deep_cfr] step 300: win=0.520
+  checkpoint saved: turn_battle_results_v2/seed_43/checkpoints/deep_cfr
+  seed score vs random: 0.400
+=== Training nfsp (300 episodes) ===
+  backend: PyTorch nfsp on cuda (NVIDIA GeForce RTX 3060 Ti) (bot_mix=50%, opponent=mixed, role-shared)
+I0830 00:16:54.353527 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+[train nfsp] step 50: win=0.240
+[train nfsp] step 100: win=0.440
+[train nfsp] step 150: win=0.420
+[train nfsp] step 200: win=0.180
+[train nfsp] step 250: win=0.400
+[train nfsp] step 300: win=0.400
+  role selection: defender seat 0, attacker seat 1 (eval win=0.417)
+  checkpoint saved: turn_battle_results_v2/seed_43/checkpoints/nfsp
+  seed score vs random: 0.400
+=== Training qpg (300 episodes) ===
+  backend: PyTorch qpg on cuda (NVIDIA GeForce RTX 3060 Ti) (bot_mix=50%, opponent=mixed, role-shared)
+I0830 00:16:58.140662 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+/home/anto/Projects/masters_degree_thesis/open_spiel/python/pytorch/policy_gradient.py:442: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at /pytorch/torch/csrc/autograd/python_variable_indexing.cpp:347.)
+  value_predictions = q_values[list(action_indices)]
+[train qpg] step 50: win=0.360
+[train qpg] step 100: win=0.400
+[train qpg] step 150: win=0.400
+[train qpg] step 200: win=0.320
+[train qpg] step 250: win=0.400
+[train qpg] step 300: win=0.360
+  role selection: defender seat 2, attacker seat 3 (eval win=0.667)
+  checkpoint saved: turn_battle_results_v2/seed_43/checkpoints/qpg
+  seed score vs random: 0.360
+=== Baseline reference phase ===
+  baseline alphazero vs random: 0.840-0.080
+  baseline alphazero vs heuristic: 0.840-0.020
+  baseline alphazero vs mcts: 0.500-0.380
+  baseline deep_cfr vs random: 0.240-0.320
+  baseline deep_cfr vs heuristic: 0.320-0.220
+  baseline deep_cfr vs mcts: 0.040-0.720
+  baseline nfsp vs random: 0.320-0.360
+  baseline nfsp vs heuristic: 0.320-0.320
+  baseline nfsp vs mcts: 0.020-0.780
+  baseline qpg vs random: 0.300-0.400
+  baseline qpg vs heuristic: 0.460-0.300
+  baseline qpg vs mcts: 0.060-0.820
+=== Round-robin phase ===
+RR: alphazero vs deep_cfr -> 0.70-0.06
+RR: alphazero vs nfsp -> 0.86-0.00
+RR: alphazero vs qpg -> 0.86-0.04
+RR: deep_cfr vs nfsp -> 0.42-0.18
+RR: deep_cfr vs qpg -> 0.24-0.32
+I0830 00:18:34.689978 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+I0830 00:18:34.866767 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+RR: nfsp vs qpg -> 0.38-0.32
+=== Bracket phase ===
+R1: alphazero vs deep_cfr -> alphazero (0.70-0.00)
+I0830 00:18:50.308714 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+I0830 00:18:50.485840 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+R1: nfsp vs qpg -> nfsp (0.34-0.34)
+R2: alphazero vs nfsp -> alphazero (0.76-0.06)
+Champion: alphazero
+Saved tournament to turn_battle_results_v2/seed_43/tournament_results.json
+
+========== Seed 44 -> turn_battle_results_v2/seed_44 ==========
+=== Training alphazero (300 episodes) ===
+  backend: C++ LibTorch AlphaZero (turn_battle_teams 2-player view) on cuda (NVIDIA GeForce RTX 3060 Ti) (train --devices=cuda:0)
+  launching C++ AlphaZero: /home/anto/Projects/masters_degree_thesis/build/examples/alpha_zero_torch_example --game=turn_battle_teams(num_turns=5) --path=turn_battle_results_v2/seed_44/az_cpp_run --nn_model=mlp --nn_width=128 --nn_depth=2 --learning_rate=0.001 --weight_decay=0.0001 --train_batch_size=64 --replay_buffer_size=4096 --replay_buffer_reuse=3 --checkpoint_freq=100 --uct_c=2.0 --max_simulations=50 --temperature=1.0 --temperature_drop=4 --actors=2 --evaluators=1 --eval_levels=3 --evaluation_window=50 --devices=cuda:0 --max_steps=300 --seed=44
+[train alphazero] step 55: win=0.620
+[train alphazero] step 110: win=0.660
+[train alphazero] step 163: win=0.640
+[train alphazero] step 214: win=0.660
+[train alphazero] step 264: win=0.720
+[train alphazero] step 300: win=0.720
+  checkpoint saved: turn_battle_results_v2/seed_44/checkpoints/alphazero
+  seed score vs random: 0.840
+=== Training deep_cfr (300 episodes) ===
+  backend: PyTorch DeepCFRSolver on cuda (NVIDIA GeForce RTX 3060 Ti) (traversals=10, batch=32)
+[train deep_cfr] step 50: win=0.360
+[train deep_cfr] step 100: win=0.460
+[train deep_cfr] step 150: win=0.260
+[train deep_cfr] step 200: win=0.280
+[train deep_cfr] step 250: win=0.320
+[train deep_cfr] step 300: win=0.180
+  checkpoint saved: turn_battle_results_v2/seed_44/checkpoints/deep_cfr
+  seed score vs random: 0.260
+=== Training nfsp (300 episodes) ===
+  backend: PyTorch nfsp on cuda (NVIDIA GeForce RTX 3060 Ti) (bot_mix=50%, opponent=mixed, role-shared)
+I0830 02:30:14.415950 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+[train nfsp] step 50: win=0.340
+[train nfsp] step 100: win=0.420
+[train nfsp] step 150: win=0.340
+[train nfsp] step 200: win=0.320
+[train nfsp] step 250: win=0.400
+[train nfsp] step 300: win=0.440
+  role selection: defender seat 0, attacker seat 3 (eval win=0.500)
+  checkpoint saved: turn_battle_results_v2/seed_44/checkpoints/nfsp
+  seed score vs random: 0.240
+=== Training qpg (300 episodes) ===
+  backend: PyTorch qpg on cuda (NVIDIA GeForce RTX 3060 Ti) (bot_mix=50%, opponent=mixed, role-shared)
+I0830 02:30:18.366598 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+/home/anto/Projects/masters_degree_thesis/open_spiel/python/pytorch/policy_gradient.py:442: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at /pytorch/torch/csrc/autograd/python_variable_indexing.cpp:347.)
+  value_predictions = q_values[list(action_indices)]
+[train qpg] step 50: win=0.400
+[train qpg] step 100: win=0.380
+[train qpg] step 150: win=0.400
+[train qpg] step 200: win=0.360
+[train qpg] step 250: win=0.380
+[train qpg] step 300: win=0.380
+  role selection: defender seat 0, attacker seat 3 (eval win=0.333)
+  checkpoint saved: turn_battle_results_v2/seed_44/checkpoints/qpg
+  seed score vs random: 0.360
+=== Baseline reference phase ===
+  baseline alphazero vs random: 0.880-0.000
+  baseline alphazero vs heuristic: 0.860-0.000
+  baseline alphazero vs mcts: 0.460-0.060
+  baseline deep_cfr vs random: 0.340-0.340
+  baseline deep_cfr vs heuristic: 0.180-0.500
+  baseline deep_cfr vs mcts: 0.040-0.760
+  baseline nfsp vs random: 0.240-0.440
+  baseline nfsp vs heuristic: 0.180-0.420
+  baseline nfsp vs mcts: 0.020-0.780
+  baseline qpg vs random: 0.380-0.300
+  baseline qpg vs heuristic: 0.300-0.320
+  baseline qpg vs mcts: 0.120-0.780
+=== Round-robin phase ===
+RR: alphazero vs deep_cfr -> 0.84-0.00
+RR: alphazero vs nfsp -> 0.76-0.00
+RR: alphazero vs qpg -> 0.88-0.00
+RR: deep_cfr vs nfsp -> 0.22-0.32
+RR: deep_cfr vs qpg -> 0.28-0.48
+I0830 02:31:48.962703 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+I0830 02:31:49.135264 130041345763200 rl_environment.py:211] Using game settings: {'num_turns': 5}
+RR: nfsp vs qpg -> 0.28-0.38
+=== Bracket phase ===
+R1: alphazero vs qpg -> alphazero (0.88-0.00)
+R1: deep_cfr vs nfsp -> nfsp (0.26-0.34)
+R2: alphazero vs nfsp -> alphazero (0.76-0.00)
+Champion: alphazero
+Saved tournament to turn_battle_results_v2/seed_44/tournament_results.json
+
+Multi-seed aggregation complete: turn_battle_results_v2/aggregated_results.json
+Aggregated LaTeX report: turn_battle_results_v2/thesis_aggregated_report.tex
+Done in 23883.1s
+=== campaign exit=0 2026-08-30T02:32:21+02:00 ===

@@ -179,11 +179,21 @@ turn_battle_results/
 ## Default Thesis Configuration
 
 See `experiments/configs/thesis_default.json` for the canonical flag snapshot
-(`num_turns=10`, seeds 42–44).
+(`num_turns=5`, seeds 42–44, 300 training episodes, 50 evaluation episodes).
 
-**Note:** Prior `production_final/` results at `num_turns=5` were removed during
-the thesis refactor. Run `--mode=multi_seed` to regenerate at `num_turns=10`
-(see `turn_battle_results/VERIFICATION_REPORT.md`).
+**The horizon is 5 for every algorithm**, in both training and evaluation. Deep
+CFR's external-sampling traversals cost ~42 min per iteration at `num_turns=10`
+(≈9 days per seed), so 10 turns is infeasible. Capping only Deep CFR was
+rejected: it would train on a smaller game than it is evaluated on, which
+invalidates its comparative standing. `parse_num_turns` therefore rejects a
+`--dcfr_max_turns` below `num_turns` unless `--allow_dcfr_horizon_mismatch` is
+passed explicitly, and evaluation asserts that a Deep CFR solver's info-state
+width matches the matchup's game.
+
+Reproduce the canonical campaign with `run_campaign.sh` in the repository
+root, which clears the output root, detaches the run, and refuses to start if
+another campaign is already writing to the same directory. See
+`turn_battle_results/VERIFICATION_REPORT.md` for the full campaign record.
 
 ## Checkpoints
 

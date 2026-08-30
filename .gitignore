@@ -6,15 +6,17 @@ checkpoint*
 # Local toolchain bootstrap (apt debs extracted without sudo)
 .local/
 
-# Turn Battle — scratch/local experiment outputs
-# Regenerated results go under production_final/ (gitignored; re-run multi_seed)
-turn_battle_results/production_final/
-turn_battle_results/seed_*/
+# Turn Battle — canonical campaign artifacts are tracked so that every number
+# the thesis reports can be traced back to the run that produced it: per-seed
+# tournament JSON, training CSVs, experiment configs, figures, the aggregate
+# and the campaign log. The two bulky regenerable trees are not tracked: model
+# checkpoints (covered by the checkpoint rules above) and the C++ AlphaZero
+# working directory, ~170 MB together, both rebuilt by run_campaign.sh.
+turn_battle_results/**/az_cpp_run/
+
+# Scratch outputs from the single-run modes, which write into the results root
+# instead of a seed directory.
 turn_battle_results/eval_*.json
-turn_battle_results/*.log
-turn_battle_results/figures/
-turn_battle_results/aggregated_results.json
-turn_battle_results/thesis_aggregated_report.tex
 turn_battle_results/algorithm_comparison.json
 turn_battle_results/algorithm_comparison.csv
 turn_battle_results/experiment_config.json

@@ -1,0 +1,850 @@
+{
+  "train_episodes": 300,
+  "num_turns": 5,
+  "eval_episodes": 50,
+  "n_seeds": 3,
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "algorithms": [
+    "alphazero",
+    "deep_cfr",
+    "nfsp",
+    "qpg"
+  ],
+  "champion_counts": {
+    "alphazero": 3
+  },
+  "champion_frequency": {
+    "alphazero": 1.0,
+    "deep_cfr": 0.0,
+    "nfsp": 0.0,
+    "qpg": 0.0
+  },
+  "seeding": {
+    "alphazero": {
+      "mean": 0.8533333333333335,
+      "std": 0.041633319989322626,
+      "sem": 0.024037008503093246,
+      "ci_low": 0.7499104330824883,
+      "ci_high": 0.9567562335841787,
+      "ci_method": "student-t (df=2)",
+      "t_critical": 4.302652729749462,
+      "bootstrap_ci_low": 0.82,
+      "bootstrap_ci_high": 0.9,
+      "n_seeds": 3,
+      "values": [
+        0.9,
+        0.8200000000000001,
+        0.8400000000000001
+      ],
+      "min": 0.8200000000000001,
+      "max": 0.9
+    },
+    "deep_cfr": {
+      "mean": 0.2933333333333334,
+      "std": 0.09451631252505216,
+      "sem": 0.05456901847914967,
+      "ci_low": 0.05854179701427126,
+      "ci_high": 0.5281248696523955,
+      "ci_method": "student-t (df=2)",
+      "t_critical": 4.302652729749462,
+      "bootstrap_ci_low": 0.22000000000000006,
+      "bootstrap_ci_high": 0.4000000000000001,
+      "n_seeds": 3,
+      "values": [
+        0.22000000000000003,
+        0.4,
+        0.26
+      ],
+      "min": 0.22000000000000003,
+      "max": 0.4
+    },
+    "nfsp": {
+      "mean": 0.25333333333333335,
+      "std": 0.14047538337136986,
+      "sem": 0.08110350040397628,
+      "ci_low": 0.0,
+      "ci_high": 0.6022935307387385,
+      "ci_method": "student-t (df=2)",
+      "t_critical": 4.302652729749462,
+      "bootstrap_ci_low": 0.12,
+      "bootstrap_ci_high": 0.4000000000000001,
+      "n_seeds": 3,
+      "values": [
+        0.12,
+        0.4,
+        0.24
+      ],
+      "min": 0.12,
+      "max": 0.4
+    },
+    "qpg": {
+      "mean": 0.39333333333333337,
+      "std": 0.057735026918962595,
+      "sem": 0.03333333333333335,
+      "ci_low": 0.24991157567501793,
+      "ci_high": 0.5367550909916488,
+      "ci_method": "student-t (df=2)",
+      "t_critical": 4.302652729749462,
+      "bootstrap_ci_low": 0.36000000000000004,
+      "bootstrap_ci_high": 0.46,
+      "n_seeds": 3,
+      "values": [
+        0.46,
+        0.36,
+        0.36
+      ],
+      "min": 0.36,
+      "max": 0.46
+    }
+  },
+  "baselines": {
+    "alphazero": {
+      "random": {
+        "mean": 0.8266666666666667,
+        "std": 0.06110100926607787,
+        "sem": 0.03527668414752788,
+        "ci_low": 0.6748833453227963,
+        "ci_high": 0.9784499880105371,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.7600000000000001,
+        "bootstrap_ci_high": 0.88,
+        "n_seeds": 3,
+        "values": [
+          0.76,
+          0.8400000000000001,
+          0.88
+        ],
+        "min": 0.76,
+        "max": 0.88
+      },
+      "heuristic": {
+        "mean": 0.7999999999999999,
+        "std": 0.08717797887081351,
+        "sem": 0.050332229568471686,
+        "ci_low": 0.5834378950528386,
+        "ci_high": 1.0,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.6999999999999998,
+        "bootstrap_ci_high": 0.86,
+        "n_seeds": 3,
+        "values": [
+          0.7,
+          0.8400000000000001,
+          0.86
+        ],
+        "min": 0.7,
+        "max": 0.86
+      },
+      "mcts": {
+        "mean": 0.48666666666666664,
+        "std": 0.023094010767585018,
+        "sem": 0.013333333333333327,
+        "ci_low": 0.4292979636033405,
+        "ci_high": 0.5440353697299928,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.46,
+        "bootstrap_ci_high": 0.5,
+        "n_seeds": 3,
+        "values": [
+          0.5,
+          0.5,
+          0.46
+        ],
+        "min": 0.46,
+        "max": 0.5
+      }
+    },
+    "deep_cfr": {
+      "random": {
+        "mean": 0.30000000000000004,
+        "std": 0.05291502622129183,
+        "sem": 0.030550504633038947,
+        "ci_low": 0.16855178784543146,
+        "ci_high": 0.43144821215456863,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.24,
+        "bootstrap_ci_high": 0.34,
+        "n_seeds": 3,
+        "values": [
+          0.32,
+          0.24,
+          0.34
+        ],
+        "min": 0.24,
+        "max": 0.34
+      },
+      "heuristic": {
+        "mean": 0.25333333333333335,
+        "std": 0.07023769168568493,
+        "sem": 0.04055175020198814,
+        "ci_low": 0.07885323463063079,
+        "ci_high": 0.42781343203603595,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.18000000000000002,
+        "bootstrap_ci_high": 0.32,
+        "n_seeds": 3,
+        "values": [
+          0.26,
+          0.32,
+          0.18
+        ],
+        "min": 0.18,
+        "max": 0.32
+      },
+      "mcts": {
+        "mean": 0.04,
+        "std": 0.0,
+        "sem": 0.0,
+        "ci_low": 0.04,
+        "ci_high": 0.04,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.04,
+        "bootstrap_ci_high": 0.04,
+        "n_seeds": 3,
+        "values": [
+          0.04,
+          0.04,
+          0.04
+        ],
+        "min": 0.04,
+        "max": 0.04
+      }
+    },
+    "nfsp": {
+      "random": {
+        "mean": 0.2733333333333334,
+        "std": 0.04163331998932266,
+        "sem": 0.024037008503093267,
+        "ci_low": 0.1699104330824881,
+        "ci_high": 0.37675623358417865,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.24,
+        "bootstrap_ci_high": 0.32,
+        "n_seeds": 3,
+        "values": [
+          0.26,
+          0.32,
+          0.24
+        ],
+        "min": 0.24,
+        "max": 0.32
+      },
+      "heuristic": {
+        "mean": 0.23333333333333336,
+        "std": 0.07571877794400364,
+        "sem": 0.04371625682868,
+        "ci_low": 0.045237461554984815,
+        "ci_high": 0.4214292051116819,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.18000000000000002,
+        "bootstrap_ci_high": 0.32,
+        "n_seeds": 3,
+        "values": [
+          0.2,
+          0.32,
+          0.18000000000000002
+        ],
+        "min": 0.18000000000000002,
+        "max": 0.32
+      },
+      "mcts": {
+        "mean": 0.013333333333333334,
+        "std": 0.011547005383792516,
+        "sem": 0.006666666666666667,
+        "ci_low": 0.0,
+        "ci_high": 0.042017684864996414,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.0,
+        "bootstrap_ci_high": 0.02,
+        "n_seeds": 3,
+        "values": [
+          0.0,
+          0.02,
+          0.02
+        ],
+        "min": 0.0,
+        "max": 0.02
+      }
+    },
+    "qpg": {
+      "random": {
+        "mean": 0.35333333333333333,
+        "std": 0.046188021535170064,
+        "sem": 0.02666666666666667,
+        "ci_low": 0.238595927206681,
+        "ci_high": 0.4680707394599857,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.3,
+        "bootstrap_ci_high": 0.38000000000000006,
+        "n_seeds": 3,
+        "values": [
+          0.38,
+          0.3,
+          0.38
+        ],
+        "min": 0.3,
+        "max": 0.38
+      },
+      "heuristic": {
+        "mean": 0.39999999999999997,
+        "std": 0.08717797887081347,
+        "sem": 0.050332229568471665,
+        "ci_low": 0.18343789505283878,
+        "ci_high": 0.6165621049471611,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.3,
+        "bootstrap_ci_high": 0.45999999999999996,
+        "n_seeds": 3,
+        "values": [
+          0.44,
+          0.45999999999999996,
+          0.3
+        ],
+        "min": 0.3,
+        "max": 0.45999999999999996
+      },
+      "mcts": {
+        "mean": 0.07333333333333333,
+        "std": 0.041633319989322654,
+        "sem": 0.024037008503093264,
+        "ci_low": 0.0,
+        "ci_high": 0.17675623358417858,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.04,
+        "bootstrap_ci_high": 0.12,
+        "n_seeds": 3,
+        "values": [
+          0.04,
+          0.06,
+          0.12
+        ],
+        "min": 0.04,
+        "max": 0.12
+      }
+    }
+  },
+  "round_robin": {
+    "alphazero": {
+      "round_robin_points": {
+        "mean": 3.0,
+        "std": 0.0,
+        "sem": 0.0,
+        "ci_low": 3.0,
+        "ci_high": 3.0,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 3.0,
+        "bootstrap_ci_high": 3.0,
+        "n_seeds": 3,
+        "values": [
+          3.0,
+          3.0,
+          3.0
+        ],
+        "min": 3.0,
+        "max": 3.0
+      },
+      "pairwise_win_rate": {
+        "mean": 0.8288888888888889,
+        "std": 0.023412563895228347,
+        "sem": 0.0135172500673294,
+        "ci_low": 0.7707288559879879,
+        "ci_high": 0.8870489217897899,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.8066666666666666,
+        "bootstrap_ci_high": 0.8533333333333334,
+        "n_seeds": 3,
+        "values": [
+          0.8533333333333334,
+          0.8066666666666666,
+          0.8266666666666667
+        ],
+        "min": 0.8066666666666666,
+        "max": 0.8533333333333334
+      },
+      "mean_round_robin_points": 3.0,
+      "mean_pairwise_win_rate": 0.8288888888888889
+    },
+    "deep_cfr": {
+      "round_robin_points": {
+        "mean": 0.6666666666666666,
+        "std": 0.5773502691896258,
+        "sem": 0.33333333333333337,
+        "ci_low": -0.7675509099164876,
+        "ci_high": 2.100884243249821,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.0,
+        "bootstrap_ci_high": 1.0,
+        "n_seeds": 3,
+        "values": [
+          1.0,
+          1.0,
+          0.0
+        ],
+        "min": 0.0,
+        "max": 1.0
+      },
+      "pairwise_win_rate": {
+        "mean": 0.18666666666666665,
+        "std": 0.046666666666666655,
+        "sem": 0.026943012562182532,
+        "ci_low": 0.07074024011831795,
+        "ci_high": 0.3025930932150154,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.15333333333333335,
+        "bootstrap_ci_high": 0.24,
+        "n_seeds": 3,
+        "values": [
+          0.15333333333333335,
+          0.24,
+          0.16666666666666666
+        ],
+        "min": 0.15333333333333335,
+        "max": 0.24
+      },
+      "mean_round_robin_points": 0.6666666666666666,
+      "mean_pairwise_win_rate": 0.18666666666666665
+    },
+    "nfsp": {
+      "round_robin_points": {
+        "mean": 0.6666666666666666,
+        "std": 0.5773502691896258,
+        "sem": 0.33333333333333337,
+        "ci_low": -0.7675509099164876,
+        "ci_high": 2.100884243249821,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.0,
+        "bootstrap_ci_high": 1.0,
+        "n_seeds": 3,
+        "values": [
+          0.0,
+          1.0,
+          1.0
+        ],
+        "min": 0.0,
+        "max": 1.0
+      },
+      "pairwise_win_rate": {
+        "mean": 0.17555555555555558,
+        "std": 0.03150543750835075,
+        "sem": 0.018189672826383237,
+        "ci_low": 0.09729171011586812,
+        "ci_high": 0.253819400995243,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.13999999999999999,
+        "bootstrap_ci_high": 0.20000000000000004,
+        "n_seeds": 3,
+        "values": [
+          0.13999999999999999,
+          0.18666666666666668,
+          0.20000000000000004
+        ],
+        "min": 0.13999999999999999,
+        "max": 0.20000000000000004
+      },
+      "mean_round_robin_points": 0.6666666666666666,
+      "mean_pairwise_win_rate": 0.17555555555555558
+    },
+    "qpg": {
+      "round_robin_points": {
+        "mean": 1.6666666666666667,
+        "std": 0.5773502691896257,
+        "sem": 0.3333333333333333,
+        "ci_low": 0.23244909008351278,
+        "ci_high": 3.100884243249821,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 1.0,
+        "bootstrap_ci_high": 2.0,
+        "n_seeds": 3,
+        "values": [
+          2.0,
+          1.0,
+          2.0
+        ],
+        "min": 1.0,
+        "max": 2.0
+      },
+      "pairwise_win_rate": {
+        "mean": 0.27555555555555555,
+        "std": 0.04438885412319593,
+        "sem": 0.0256279168770462,
+        "ci_low": 0.1652875290467404,
+        "ci_high": 0.38582358206437073,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.22666666666666668,
+        "bootstrap_ci_high": 0.3133333333333333,
+        "n_seeds": 3,
+        "values": [
+          0.3133333333333333,
+          0.22666666666666668,
+          0.2866666666666667
+        ],
+        "min": 0.22666666666666668,
+        "max": 0.3133333333333333
+      },
+      "mean_round_robin_points": 1.6666666666666667,
+      "mean_pairwise_win_rate": 0.27555555555555555
+    }
+  },
+  "pairwise": {
+    "alphazero": {
+      "deep_cfr": {
+        "n_seeds": 3,
+        "mean": 0.7799999999999999,
+        "std": 0.07211102550927985,
+        "sem": 0.041633319989322695,
+        "ci_low": 0.6008662820994077,
+        "ci_high": 0.9591337179005921,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.6999999999999998,
+        "bootstrap_ci_high": 0.8400000000000002,
+        "values": [
+          0.8,
+          0.7,
+          0.8400000000000001
+        ],
+        "min": 0.7,
+        "max": 0.8400000000000001
+      },
+      "nfsp": {
+        "n_seeds": 3,
+        "mean": 0.8333333333333334,
+        "std": 0.06429100507328636,
+        "sem": 0.03711842908553348,
+        "ci_low": 0.673625623104451,
+        "ci_high": 0.9930410435622158,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.7600000000000001,
+        "bootstrap_ci_high": 0.88,
+        "values": [
+          0.88,
+          0.86,
+          0.76
+        ],
+        "min": 0.76,
+        "max": 0.88
+      },
+      "qpg": {
+        "n_seeds": 3,
+        "mean": 0.8733333333333334,
+        "std": 0.011547005383792525,
+        "sem": 0.006666666666666672,
+        "ci_low": 0.8446489818016703,
+        "ci_high": 0.9020176848649966,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.86,
+        "bootstrap_ci_high": 0.88,
+        "values": [
+          0.88,
+          0.86,
+          0.88
+        ],
+        "min": 0.86,
+        "max": 0.88
+      }
+    },
+    "deep_cfr": {
+      "alphazero": {
+        "n_seeds": 3,
+        "mean": 0.02,
+        "std": 0.034641016151377546,
+        "sem": 0.02,
+        "ci_low": 0.0,
+        "ci_high": 0.10605305459498925,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.0,
+        "bootstrap_ci_high": 0.06,
+        "values": [
+          0.0,
+          0.06,
+          0.0
+        ],
+        "min": 0.0,
+        "max": 0.06
+      },
+      "nfsp": {
+        "n_seeds": 3,
+        "mean": 0.34,
+        "std": 0.1058300524425836,
+        "sem": 0.06110100926607786,
+        "ci_low": 0.07710357569086296,
+        "ci_high": 0.602896424309137,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.22000000000000006,
+        "bootstrap_ci_high": 0.42,
+        "values": [
+          0.38,
+          0.42,
+          0.22000000000000003
+        ],
+        "min": 0.22000000000000003,
+        "max": 0.42
+      },
+      "qpg": {
+        "n_seeds": 3,
+        "mean": 0.20000000000000004,
+        "std": 0.10583005244258363,
+        "sem": 0.06110100926607787,
+        "ci_low": 0.0,
+        "ci_high": 0.46289642430913713,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.08,
+        "bootstrap_ci_high": 0.28,
+        "values": [
+          0.08,
+          0.24000000000000002,
+          0.28
+        ],
+        "min": 0.08,
+        "max": 0.28
+      }
+    },
+    "nfsp": {
+      "alphazero": {
+        "n_seeds": 3,
+        "mean": 0.006666666666666667,
+        "std": 0.011547005383792516,
+        "sem": 0.006666666666666667,
+        "ci_low": 0.0,
+        "ci_high": 0.035351018198329746,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.0,
+        "bootstrap_ci_high": 0.02,
+        "values": [
+          0.02,
+          0.0,
+          0.0
+        ],
+        "min": 0.0,
+        "max": 0.02
+      },
+      "deep_cfr": {
+        "n_seeds": 3,
+        "mean": 0.24666666666666667,
+        "std": 0.07023769168568493,
+        "sem": 0.04055175020198814,
+        "ci_low": 0.07218656796396411,
+        "ci_high": 0.42114676536936924,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.18000000000000002,
+        "bootstrap_ci_high": 0.32,
+        "values": [
+          0.24,
+          0.18,
+          0.32
+        ],
+        "min": 0.18,
+        "max": 0.32
+      },
+      "qpg": {
+        "n_seeds": 3,
+        "mean": 0.2733333333333334,
+        "std": 0.11015141094572203,
+        "sem": 0.06359594676112972,
+        "ci_low": 0.0,
+        "ci_high": 0.5469646072661096,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.16,
+        "bootstrap_ci_high": 0.38000000000000006,
+        "values": [
+          0.16,
+          0.38,
+          0.28
+        ],
+        "min": 0.16,
+        "max": 0.38
+      }
+    },
+    "qpg": {
+      "alphazero": {
+        "n_seeds": 3,
+        "mean": 0.013333333333333334,
+        "std": 0.023094010767585032,
+        "sem": 0.013333333333333334,
+        "ci_low": 0.0,
+        "ci_high": 0.07070203639665949,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.0,
+        "bootstrap_ci_high": 0.04,
+        "values": [
+          0.0,
+          0.04,
+          0.0
+        ],
+        "min": 0.0,
+        "max": 0.04
+      },
+      "deep_cfr": {
+        "n_seeds": 3,
+        "mean": 0.44,
+        "std": 0.10583005244258362,
+        "sem": 0.061101009266077866,
+        "ci_low": 0.17710357569086294,
+        "ci_high": 0.7028964243091371,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.32,
+        "bootstrap_ci_high": 0.52,
+        "values": [
+          0.52,
+          0.32,
+          0.48
+        ],
+        "min": 0.32,
+        "max": 0.52
+      },
+      "nfsp": {
+        "n_seeds": 3,
+        "mean": 0.37333333333333335,
+        "std": 0.05033222956847165,
+        "sem": 0.02905932629027115,
+        "ci_low": 0.24830114374581788,
+        "ci_high": 0.4983655229208488,
+        "ci_method": "student-t (df=2)",
+        "t_critical": 4.302652729749462,
+        "bootstrap_ci_low": 0.32,
+        "bootstrap_ci_high": 0.42,
+        "values": [
+          0.42,
+          0.32,
+          0.38
+        ],
+        "min": 0.32,
+        "max": 0.42
+      }
+    }
+  },
+  "paired_comparisons": {
+    "alphazero_vs_deep_cfr": {
+      "n_seeds": 3,
+      "mean_difference": 0.56,
+      "ci_low": 0.23420839338593952,
+      "ci_high": 0.8857916066140605,
+      "seeds_favouring_a": 3,
+      "seeds_favouring_b": 0,
+      "p_value": 0.01779575210777948,
+      "per_seed_difference": [
+        0.6799999999999999,
+        0.42000000000000004,
+        0.5800000000000001
+      ]
+    },
+    "alphazero_vs_nfsp": {
+      "n_seeds": 3,
+      "mean_difference": 0.6000000000000001,
+      "ci_low": 0.15285521188494072,
+      "ci_high": 1.0471447881150595,
+      "seeds_favouring_a": 3,
+      "seeds_favouring_b": 0,
+      "p_value": 0.028714137642735813,
+      "per_seed_difference": [
+        0.78,
+        0.42000000000000004,
+        0.6000000000000001
+      ]
+    },
+    "alphazero_vs_qpg": {
+      "n_seeds": 3,
+      "mean_difference": 0.46000000000000013,
+      "ci_low": 0.4103172457649934,
+      "ci_high": 0.5096827542350069,
+      "seeds_favouring_a": 3,
+      "seeds_favouring_b": 0,
+      "p_value": 0.0006295247712348497,
+      "per_seed_difference": [
+        0.44,
+        0.4600000000000001,
+        0.4800000000000001
+      ]
+    },
+    "deep_cfr_vs_nfsp": {
+      "n_seeds": 3,
+      "mean_difference": 0.040000000000000015,
+      "ci_low": -0.09144821215456858,
+      "ci_high": 0.1714482121545686,
+      "seeds_favouring_a": 2,
+      "seeds_favouring_b": 0,
+      "p_value": 0.3206337795132425,
+      "per_seed_difference": [
+        0.10000000000000003,
+        0.0,
+        0.020000000000000018
+      ]
+    },
+    "deep_cfr_vs_qpg": {
+      "n_seeds": 3,
+      "mean_difference": -0.09999999999999998,
+      "ci_low": -0.4477792796450462,
+      "ci_high": 0.24777927964504626,
+      "seeds_favouring_a": 1,
+      "seeds_favouring_b": 2,
+      "p_value": 0.34157307804077947,
+      "per_seed_difference": [
+        -0.24,
+        0.040000000000000036,
+        -0.09999999999999998
+      ]
+    },
+    "nfsp_vs_qpg": {
+      "n_seeds": 3,
+      "mean_difference": -0.13999999999999999,
+      "ci_low": -0.6139432689913658,
+      "ci_high": 0.33394326899136584,
+      "seeds_favouring_a": 1,
+      "seeds_favouring_b": 2,
+      "p_value": 0.3315626352168082,
+      "per_seed_difference": [
+        -0.34,
+        0.040000000000000036,
+        -0.12
+      ]
+    }
+  },
+  "per_seed": [
+    {
+      "seed": 42,
+      "champion": "alphazero"
+    },
+    {
+      "seed": 43,
+      "champion": "alphazero"
+    },
+    {
+      "seed": 44,
+      "champion": "alphazero"
+    }
+  ]
+}

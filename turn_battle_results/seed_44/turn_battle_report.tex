@@ -1,0 +1,88 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\title{Turn Battle MARL Study Report}
+\author{OpenSpiel Experiment Pipeline}
+\date{\today}
+\begin{document}
+\maketitle
+\section{Overview}
+This report summarizes training, round-robin, and bracket-tournament results on the \texttt{turn\_battle} OpenSpiel environment (4-player team combat). Every algorithm is trained for the same number of episodes (\texttt{train\_episodes}).
+\section{Training curves}
+Figure~\ref{fig:training} shows evaluation win rate against a random baseline during training.
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/training_curves.pdf}
+\caption{Training progress per algorithm.}
+\label{fig:training}
+\end{figure}
+\section{Seeding}
+Algorithms were ranked by win rate vs.\ random on team~1 (defenders on players~0/2, attackers on players~1/3) before the elimination bracket.
+\begin{table}[h]
+\centering
+\begin{tabular}{lc}
+\toprule
+Algorithm & Win rate vs random \\
+\midrule
+alphazero & 0.840 \\
+qpg & 0.360 \\
+deep_cfr & 0.260 \\
+nfsp & 0.240 \\
+\bottomrule
+\end{tabular}
+\caption{Seeding scores (fixed role slots).}
+\end{table}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/seeding.pdf}
+\caption{Seeding scores.}
+\label{fig:seeding}
+\end{figure}
+\section{Round-robin}
+Every algorithm played every other algorithm on fixed team slots (team~1 vs team~2; defenders and attackers keep trained roles).
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\linewidth]{figures/round_robin.pdf}
+\caption{Pairwise win-rate matrix (row vs column).}
+\label{fig:roundrobin}
+\end{figure}
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Algorithm & RR points & Avg pairwise win rate \\
+\midrule
+alphazero & 3.0 & 0.827 \\
+qpg & 2.0 & 0.287 \\
+nfsp & 1.0 & 0.200 \\
+deep_cfr & 0.0 & 0.167 \\
+\bottomrule
+\end{tabular}
+\caption{Round-robin standings.}
+\end{table}
+\section{Bracket tournament}
+The bracket champion was \textbf{alphazero}.
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.95\linewidth]{figures/bracket.pdf}
+\caption{Head-to-head bracket results.}
+\label{fig:bracket}
+\end{figure}
+\begin{table}[h]
+\centering
+\begin{tabular}{llll}
+\toprule
+Round & Team 1 & Team 2 & Winner \\
+\midrule
+R1 & alphazero & qpg & alphazero \\
+R1 & deep_cfr & nfsp & nfsp \\
+R2 & alphazero & nfsp & alphazero \\
+\bottomrule
+\end{tabular}
+\caption{Bracket match log.}
+\end{table}
+\section{Conclusion}
+The bracket winner was \textbf{alphazero}. Round-robin and bracket phases together provide both exhaustive pairwise data and a seeded elimination champion.
+\end{document}

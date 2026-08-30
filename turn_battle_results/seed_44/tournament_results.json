@@ -1,0 +1,455 @@
+{
+  "train_episodes": 300,
+  "algorithms": [
+    "alphazero",
+    "deep_cfr",
+    "nfsp",
+    "qpg"
+  ],
+  "num_turns": 5,
+  "eval_episodes": 50,
+  "seeding": {
+    "alphazero": 0.8400000000000001,
+    "deep_cfr": 0.26,
+    "nfsp": 0.24,
+    "qpg": 0.36
+  },
+  "baselines": {
+    "alphazero": {
+      "random": {
+        "win_rate": 0.88,
+        "loss_rate": 0.0,
+        "draw_rate": 0.12,
+        "episodes": 50
+      },
+      "heuristic": {
+        "win_rate": 0.86,
+        "loss_rate": 0.0,
+        "draw_rate": 0.14,
+        "episodes": 50
+      },
+      "mcts": {
+        "win_rate": 0.46,
+        "loss_rate": 0.06,
+        "draw_rate": 0.48,
+        "episodes": 50
+      }
+    },
+    "deep_cfr": {
+      "random": {
+        "win_rate": 0.34,
+        "loss_rate": 0.34,
+        "draw_rate": 0.32,
+        "episodes": 50
+      },
+      "heuristic": {
+        "win_rate": 0.18,
+        "loss_rate": 0.5,
+        "draw_rate": 0.32,
+        "episodes": 50
+      },
+      "mcts": {
+        "win_rate": 0.04,
+        "loss_rate": 0.76,
+        "draw_rate": 0.2,
+        "episodes": 50
+      }
+    },
+    "nfsp": {
+      "random": {
+        "win_rate": 0.24,
+        "loss_rate": 0.44,
+        "draw_rate": 0.32,
+        "episodes": 50
+      },
+      "heuristic": {
+        "win_rate": 0.18000000000000002,
+        "loss_rate": 0.42000000000000004,
+        "draw_rate": 0.4,
+        "episodes": 50
+      },
+      "mcts": {
+        "win_rate": 0.02,
+        "loss_rate": 0.78,
+        "draw_rate": 0.2,
+        "episodes": 50
+      }
+    },
+    "qpg": {
+      "random": {
+        "win_rate": 0.38,
+        "loss_rate": 0.30000000000000004,
+        "draw_rate": 0.32,
+        "episodes": 50
+      },
+      "heuristic": {
+        "win_rate": 0.3,
+        "loss_rate": 0.32,
+        "draw_rate": 0.38,
+        "episodes": 50
+      },
+      "mcts": {
+        "win_rate": 0.12,
+        "loss_rate": 0.78,
+        "draw_rate": 0.1,
+        "episodes": 50
+      }
+    }
+  },
+  "role_selection": {
+    "nfsp": {
+      "defender_seat": 0,
+      "attacker_seat": 3
+    },
+    "qpg": {
+      "defender_seat": 0,
+      "attacker_seat": 3
+    }
+  },
+  "round_robin": {
+    "pairs": [
+      {
+        "team1": "alphazero",
+        "team2": "deep_cfr",
+        "team1_win_rate": 0.8400000000000001,
+        "team2_win_rate": 0.0,
+        "match": {
+          "episodes": 50,
+          "team1_win_rate": 0.8400000000000001,
+          "team2_win_rate": 0.0,
+          "draw_rate": 0.16,
+          "team1_avg_return": 1.6800000000000002,
+          "team2_avg_return": -1.6800000000000002,
+          "slot_balanced": true,
+          "orientations": {
+            "a_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.68,
+              "team2_win_rate": 0.0,
+              "draw_rate": 0.32,
+              "team1_avg_return": 1.36,
+              "team2_avg_return": -1.36
+            },
+            "b_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.0,
+              "team2_win_rate": 1.0,
+              "draw_rate": 0.0,
+              "team1_avg_return": -2.0,
+              "team2_avg_return": 2.0
+            }
+          }
+        }
+      },
+      {
+        "team1": "alphazero",
+        "team2": "nfsp",
+        "team1_win_rate": 0.76,
+        "team2_win_rate": 0.0,
+        "match": {
+          "episodes": 50,
+          "team1_win_rate": 0.76,
+          "team2_win_rate": 0.0,
+          "draw_rate": 0.24,
+          "team1_avg_return": 1.52,
+          "team2_avg_return": -1.52,
+          "slot_balanced": true,
+          "orientations": {
+            "a_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.52,
+              "team2_win_rate": 0.0,
+              "draw_rate": 0.48,
+              "team1_avg_return": 1.04,
+              "team2_avg_return": -1.04
+            },
+            "b_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.0,
+              "team2_win_rate": 1.0,
+              "draw_rate": 0.0,
+              "team1_avg_return": -2.0,
+              "team2_avg_return": 2.0
+            }
+          }
+        }
+      },
+      {
+        "team1": "alphazero",
+        "team2": "qpg",
+        "team1_win_rate": 0.88,
+        "team2_win_rate": 0.0,
+        "match": {
+          "episodes": 50,
+          "team1_win_rate": 0.88,
+          "team2_win_rate": 0.0,
+          "draw_rate": 0.12,
+          "team1_avg_return": 1.76,
+          "team2_avg_return": -1.76,
+          "slot_balanced": true,
+          "orientations": {
+            "a_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.76,
+              "team2_win_rate": 0.0,
+              "draw_rate": 0.24,
+              "team1_avg_return": 1.52,
+              "team2_avg_return": -1.52
+            },
+            "b_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.0,
+              "team2_win_rate": 1.0,
+              "draw_rate": 0.0,
+              "team1_avg_return": -2.0,
+              "team2_avg_return": 2.0
+            }
+          }
+        }
+      },
+      {
+        "team1": "deep_cfr",
+        "team2": "nfsp",
+        "team1_win_rate": 0.22000000000000003,
+        "team2_win_rate": 0.32,
+        "match": {
+          "episodes": 50,
+          "team1_win_rate": 0.22000000000000003,
+          "team2_win_rate": 0.32,
+          "draw_rate": 0.45999999999999996,
+          "team1_avg_return": -0.19999999999999998,
+          "team2_avg_return": 0.19999999999999998,
+          "slot_balanced": true,
+          "orientations": {
+            "a_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.28,
+              "team2_win_rate": 0.24,
+              "draw_rate": 0.48,
+              "team1_avg_return": 0.08,
+              "team2_avg_return": -0.08
+            },
+            "b_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.4,
+              "team2_win_rate": 0.16,
+              "draw_rate": 0.44,
+              "team1_avg_return": 0.48,
+              "team2_avg_return": -0.48
+            }
+          }
+        }
+      },
+      {
+        "team1": "deep_cfr",
+        "team2": "qpg",
+        "team1_win_rate": 0.28,
+        "team2_win_rate": 0.48,
+        "match": {
+          "episodes": 50,
+          "team1_win_rate": 0.28,
+          "team2_win_rate": 0.48,
+          "draw_rate": 0.24,
+          "team1_avg_return": -0.4,
+          "team2_avg_return": 0.4,
+          "slot_balanced": true,
+          "orientations": {
+            "a_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.24,
+              "team2_win_rate": 0.52,
+              "draw_rate": 0.24,
+              "team1_avg_return": -0.56,
+              "team2_avg_return": 0.56
+            },
+            "b_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.44,
+              "team2_win_rate": 0.32,
+              "draw_rate": 0.24,
+              "team1_avg_return": 0.24,
+              "team2_avg_return": -0.24
+            }
+          }
+        }
+      },
+      {
+        "team1": "nfsp",
+        "team2": "qpg",
+        "team1_win_rate": 0.28,
+        "team2_win_rate": 0.38,
+        "match": {
+          "episodes": 50,
+          "team1_win_rate": 0.28,
+          "team2_win_rate": 0.38,
+          "draw_rate": 0.33999999999999997,
+          "team1_avg_return": -0.2,
+          "team2_avg_return": 0.2,
+          "slot_balanced": true,
+          "orientations": {
+            "a_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.24,
+              "team2_win_rate": 0.28,
+              "draw_rate": 0.48,
+              "team1_avg_return": -0.08,
+              "team2_avg_return": 0.08
+            },
+            "b_on_team1": {
+              "episodes": 25,
+              "team1_win_rate": 0.48,
+              "team2_win_rate": 0.32,
+              "draw_rate": 0.2,
+              "team1_avg_return": 0.32,
+              "team2_avg_return": -0.32
+            }
+          }
+        }
+      }
+    ],
+    "matrix": {
+      "alphazero": {
+        "alphazero": 0.5,
+        "deep_cfr": 0.8400000000000001,
+        "nfsp": 0.76,
+        "qpg": 0.88
+      },
+      "deep_cfr": {
+        "alphazero": 0.0,
+        "deep_cfr": 0.5,
+        "nfsp": 0.22000000000000003,
+        "qpg": 0.28
+      },
+      "nfsp": {
+        "alphazero": 0.0,
+        "deep_cfr": 0.32,
+        "nfsp": 0.5,
+        "qpg": 0.28
+      },
+      "qpg": {
+        "alphazero": 0.0,
+        "deep_cfr": 0.48,
+        "nfsp": 0.38,
+        "qpg": 0.5
+      }
+    },
+    "standings": [
+      {
+        "algorithm": "alphazero",
+        "round_robin_points": 3.0,
+        "avg_pairwise_win_rate": 0.8266666666666667
+      },
+      {
+        "algorithm": "qpg",
+        "round_robin_points": 2.0,
+        "avg_pairwise_win_rate": 0.2866666666666667
+      },
+      {
+        "algorithm": "nfsp",
+        "round_robin_points": 1.0,
+        "avg_pairwise_win_rate": 0.20000000000000004
+      },
+      {
+        "algorithm": "deep_cfr",
+        "round_robin_points": 0.0,
+        "avg_pairwise_win_rate": 0.16666666666666666
+      }
+    ]
+  },
+  "champion": "alphazero",
+  "bracket": [
+    {
+      "round": 1,
+      "team1": "alphazero",
+      "team2": "qpg",
+      "winner": "alphazero",
+      "episodes": 50,
+      "team1_win_rate": 0.88,
+      "team2_win_rate": 0.0,
+      "draw_rate": 0.12,
+      "team1_avg_return": 1.76,
+      "team2_avg_return": -1.76,
+      "slot_balanced": true,
+      "orientations": {
+        "a_on_team1": {
+          "episodes": 25,
+          "team1_win_rate": 0.76,
+          "team2_win_rate": 0.0,
+          "draw_rate": 0.24,
+          "team1_avg_return": 1.52,
+          "team2_avg_return": -1.52
+        },
+        "b_on_team1": {
+          "episodes": 25,
+          "team1_win_rate": 0.0,
+          "team2_win_rate": 1.0,
+          "draw_rate": 0.0,
+          "team1_avg_return": -2.0,
+          "team2_avg_return": 2.0
+        }
+      }
+    },
+    {
+      "round": 1,
+      "team1": "deep_cfr",
+      "team2": "nfsp",
+      "winner": "nfsp",
+      "episodes": 50,
+      "team1_win_rate": 0.26,
+      "team2_win_rate": 0.33999999999999997,
+      "draw_rate": 0.4,
+      "team1_avg_return": -0.16,
+      "team2_avg_return": 0.16,
+      "slot_balanced": true,
+      "orientations": {
+        "a_on_team1": {
+          "episodes": 25,
+          "team1_win_rate": 0.2,
+          "team2_win_rate": 0.36,
+          "draw_rate": 0.44,
+          "team1_avg_return": -0.32,
+          "team2_avg_return": 0.32
+        },
+        "b_on_team1": {
+          "episodes": 25,
+          "team1_win_rate": 0.32,
+          "team2_win_rate": 0.32,
+          "draw_rate": 0.36,
+          "team1_avg_return": 0.0,
+          "team2_avg_return": 0.0
+        }
+      }
+    },
+    {
+      "round": 2,
+      "team1": "alphazero",
+      "team2": "nfsp",
+      "winner": "alphazero",
+      "episodes": 50,
+      "team1_win_rate": 0.76,
+      "team2_win_rate": 0.0,
+      "draw_rate": 0.24,
+      "team1_avg_return": 1.52,
+      "team2_avg_return": -1.52,
+      "slot_balanced": true,
+      "orientations": {
+        "a_on_team1": {
+          "episodes": 25,
+          "team1_win_rate": 0.52,
+          "team2_win_rate": 0.0,
+          "draw_rate": 0.48,
+          "team1_avg_return": 1.04,
+          "team2_avg_return": -1.04
+        },
+        "b_on_team1": {
+          "episodes": 25,
+          "team1_win_rate": 0.0,
+          "team2_win_rate": 1.0,
+          "draw_rate": 0.0,
+          "team1_avg_return": -2.0,
+          "team2_avg_return": 2.0
+        }
+      }
+    }
+  ]
+}
