@@ -354,6 +354,16 @@ std::vector<double> TurnBattleState::Returns() const {
   return TeamReturns(TeamHealth(0), TeamHealth(1));
 }
 
+// NOTE: this returns ToString(), which prints turn, HP and special flags but
+// NOT actions_history_, so the information-state *string* does not distinguish
+// two histories reaching the same state and is therefore not perfect-recall.
+// InformationStateTensor is, because the observer appends the flat action
+// history. Consumers that key information sets on the string rather than the
+// tensor would silently violate perfect recall: tabular CFR and best-response
+// or exploitability computations do exactly that. Deep CFR is unaffected
+// (python/pytorch/deep_cfr.py keys on information_state_tensor only), but an
+// exploitability run must either use the tensor or have this append the
+// history first.
 std::string TurnBattleState::InformationStateString(Player player) const {
   SPIEL_CHECK_GE(player, 0);
   SPIEL_CHECK_LT(player, kNumPlayers);
