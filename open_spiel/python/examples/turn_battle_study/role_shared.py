@@ -128,6 +128,39 @@ def _sync_agent_weights(src, dst) -> None:
   raise TypeError(f"Unsupported agent type for weight sync: {type(src)}")
 
 
+def _bookkeeping_slots(agent) -> List[Tuple[object, str]]:
+  """Return (holder, attr) pairs of an agent's per-episode transition state.
+
+  Two seat facades share one learner object, so any state the learner uses to
+  pair the previous timestep with the current one must be kept per SEAT, not
+  per learner, or interleaved steps from the other seat corrupt transitions.
+  """
+  from open_spiel.python.pytorch import nfsp
+  from open_spiel.python.pytorch import policy_gradient
+
+  if isinstance(agent, nfsp.NFSP):
+    # BEST_RESPONSE mode delegates to the inner DQN's own bookkeeping. _mode
+    # is per-seat too: it is resampled at each terminal step, and a mid-
+    # terminal flip would otherwise leave the other seat's episode half-
+    # processed under the wrong mode.
+    return [
+        (agent, "_prev_timestep"),
+        (agent, "_prev_action"),
+        (agent, "_mode"),
+        (agent._rl_agent, "_prev_timestep"),
+        (agent._rl_agent, "_prev_action"),
+    ]
+  if isinstance(agent, policy_gradient.PolicyGradient):
+    # _episode_data is a within-episode sequence; returns are computed over
+    # it backwards, so it must not interleave transitions from two seats.
+    return [
+        (agent, "_prev_time_step"),
+        (agent, "_prev_action"),
+        (agent, "_episode_data"),
+    ]
+  return []
+
+
 class RoleSeatFacade:
   """One seat with role-relative observations for its underlying learner."""
 
@@ -136,6 +169,13 @@ class RoleSeatFacade:
     self._role_agent = role_agent
     self._role = role
     self.player_id = seat_id
+    self._seat_state = [
+        # _mode starts from the agent's initial sample; sequences start empty;
+        # prev-timestep/action slots start as None (no previous state yet).
+        getattr(holder, attr) if attr == "_mode"
+        else ([] if attr == "_episode_data" else None)
+        for holder, attr in _bookkeeping_slots(role_agent)
+    ]
 
   @property
   def underlying(self):
@@ -143,8 +183,19 @@ class RoleSeatFacade:
 
   def step(self, time_step, is_evaluation=False):
     canon = DEFENDER_CANON if self._role == "defender" else ATTACKER_CANON
-    return self._role_agent.step(
-        _remap_timestep(time_step, self._seat_id, canon), is_evaluation)
+    remapped = _remap_timestep(time_step, self._seat_id, canon)
+    if is_evaluation:
+      return self._role_agent.step(remapped, is_evaluation)
+    # Invariant: the shared learner must see this seat's own previous state
+    # when it builds the (prev_timestep, prev_action, time_step) transition.
+    # Swap this seat's bookkeeping in for the step and save it back after.
+    slots = _bookkeeping_slots(self._role_agent)
+    for (holder, attr), value in zip(slots, self._seat_state):
+      setattr(holder, attr, value)
+    try:
+      return self._role_agent.step(remapped, is_evaluation)
+    finally:
+      self._seat_state = [getattr(holder, attr) for holder, attr in slots]
 
   def __getattr__(self, name):
     return getattr(self._role_agent, name)

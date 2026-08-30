@@ -640,11 +640,12 @@ class DQN(rl_agent.AbstractAgent):
     checkpoint = torch.load(
         data_path, weights_only=True, map_location=self._device
     )
-    self._q_network.load_state_dict(checkpoint["model_state_dict"])
-    self._target_q_network.load_state_dict(checkpoint["model_state_dict"])
+    # Keys must match what save() writes: "model" and "optimiser".
+    self._q_network.load_state_dict(checkpoint["model"])
+    self._target_q_network.load_state_dict(checkpoint["model"])
 
     if load_optimiser:
-      self._optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+      self._optimizer.load_state_dict(checkpoint["optimiser"])
 
     self._iteration = checkpoint["iteration"]
     self._last_loss_value = checkpoint["last_loss_value"]
