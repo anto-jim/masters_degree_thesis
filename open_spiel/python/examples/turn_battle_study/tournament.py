@@ -18,6 +18,7 @@ from open_spiel.python.examples.turn_battle_study.config import (
 
 FLAGS = flags.FLAGS
 from open_spiel.python.examples.turn_battle_study.evaluation import evaluate_team_matchup
+from open_spiel.python.examples.turn_battle_study.game import parse_num_turns
 from open_spiel.python.examples.turn_battle_study.models import BracketMatch
 from open_spiel.python.examples.turn_battle_study.checkpoints import (
     load_trained_agents,
@@ -28,10 +29,10 @@ from open_spiel.python.examples.turn_battle_study.role_shared import (
     RoleSharedTeam,
     select_best_role_seats,
 )
-from open_spiel.python.examples.turn_battle_study.trainers import (
-    _fixed_role_win_rate,
-    train_algorithm,
-)
+from open_spiel.python.examples.turn_battle_study.trainers import train_algorithm
+
+
+BASELINE_OPPONENTS = ("random", "heuristic", "mcts")
 
 
 def _pick_winner(algo1: str, algo2: str, stats: Dict[str, float]) -> str:
@@ -133,7 +134,7 @@ def _load_one_algorithm(
       ``{output_dir}/checkpoints/{key}``.
     eval_episodes: Number of episodes used for the seeding evaluation.
     rng: Random state forwarded to ``_maybe_finalize_rl_agents`` and
-      ``_fixed_role_win_rate``.
+      ``_seeding_score``.
 
   Returns:
     A tuple of ``(agents, seed_score)`` where *seed_score* is the win rate
@@ -149,7 +150,7 @@ def _load_one_algorithm(
         f"Checkpoint required for {key} but missing: {ckpt_dir}")
   agents = load_trained_agents(key, ckpt_dir, rng)
   agents = _maybe_finalize_rl_agents(key, agents, eval_episodes, rng)
-  seed_score = _fixed_role_win_rate(key, agents, eval_episodes, rng)[0]
+  seed_score = _seeding_score(key, agents, eval_episodes, rng)
   print(f"  seed score vs random: {seed_score:.3f}")
   return agents, seed_score
 
@@ -185,14 +186,15 @@ def _train_one_algorithm(
   print(f"=== Training {key} ({train_episodes} episodes) ===")
   eval_interval = max(1, min(eval_every, max(train_episodes // 6, 25)))
   agents, log, artifact = train_algorithm(
-      key, train_episodes, eval_interval, eval_episodes, rng)
+      key, train_episodes, eval_interval, eval_episodes, rng,
+      output_dir=output_dir)
   agents = _finalize_rl_agents(key, agents, eval_episodes, rng)
   save_training_log(log, output_dir)
   if getattr(FLAGS, "save_checkpoints", True):
     ckpt_dir = f"{output_dir}/checkpoints/{key}"
     save_trained_checkpoint(key, agents, artifact, ckpt_dir)
     print(f"  checkpoint saved: {ckpt_dir}")
-  seed_score = _fixed_role_win_rate(key, agents, eval_episodes, rng)[0]
+  seed_score = _seeding_score(key, agents, eval_episodes, rng)
   print(f"  seed score vs random: {seed_score:.3f}")
   return agents, seed_score
 
@@ -322,11 +324,8 @@ def run_bracket(
       if a == b:
         next_round.append(a)
         continue
-      agents_a = trained.get(a)
-      agents_b = trained.get(b)
-      stats = evaluate_team_matchup(
-          a, b, eval_episodes, rng,
-          team1_agents=agents_a, team2_agents=agents_b).summary()
+      _a_rate, _b_rate, stats = _pairwise_win_rate(
+          a, b, eval_episodes, rng, trained)
       winner = _pick_winner(a, b, stats)
       matches.append(BracketMatch(round_num, a, b, winner, stats))
       next_round.append(winner)
@@ -344,11 +343,112 @@ def _pairwise_win_rate(
     rng: np.random.RandomState,
     trained: Dict[str, Optional[object]],
 ) -> Tuple[float, float, Dict[str, float]]:
-  """Win rates with algo_a on team1 and algo_b on team2 (fixed role slots)."""
-  stats = evaluate_team_matchup(
-      algo_a, algo_b, eval_episodes, rng,
-      team1_agents=trained.get(algo_a), team2_agents=trained.get(algo_b)).summary()
-  return stats["team1_win_rate"], stats["team2_win_rate"], stats
+  """Slot-balanced win rates for a pairing.
+
+  The two team slots are not interchangeable: team 1 resolves its actions
+  first within a turn. Playing a pairing in only one orientation therefore
+  measures the pairing plus a slot advantage. Each pairing is played in both
+  orientations with half the episodes each and the rates are averaged, so the
+  slot advantage cancels.
+
+  Args:
+    algo_a: First algorithm key.
+    algo_b: Second algorithm key.
+    eval_episodes: Total episodes for the pairing, split across orientations.
+    rng: Random state forwarded to ``evaluate_team_matchup``.
+    trained: Mapping from algorithm key to trained agents (or None).
+
+  Returns:
+    ``(a_win_rate, b_win_rate, stats)`` where the rates are averaged over both
+    orientations and *stats* carries the combined figures plus each
+    orientation's raw summary.
+  """
+  half = max(1, eval_episodes // 2)
+  forward = evaluate_team_matchup(
+      algo_a, algo_b, half, rng,
+      team1_agents=trained.get(algo_a),
+      team2_agents=trained.get(algo_b)).summary()
+  reverse = evaluate_team_matchup(
+      algo_b, algo_a, half, rng,
+      team1_agents=trained.get(algo_b),
+      team2_agents=trained.get(algo_a)).summary()
+  a_rate = 0.5 * (forward["team1_win_rate"] + reverse["team2_win_rate"])
+  b_rate = 0.5 * (forward["team2_win_rate"] + reverse["team1_win_rate"])
+  stats = {
+      "episodes": forward["episodes"] + reverse["episodes"],
+      "team1_win_rate": a_rate,
+      "team2_win_rate": b_rate,
+      "draw_rate": 0.5 * (forward["draw_rate"] + reverse["draw_rate"]),
+      "team1_avg_return": 0.5 * (
+          forward["team1_avg_return"] + reverse["team2_avg_return"]),
+      "team2_avg_return": 0.5 * (
+          forward["team2_avg_return"] + reverse["team1_avg_return"]),
+      "slot_balanced": True,
+      "orientations": {
+          "a_on_team1": forward,
+          "b_on_team1": reverse,
+      },
+  }
+  return a_rate, b_rate, stats
+
+
+def _seeding_score(
+    key: str,
+    agents: object,
+    eval_episodes: int,
+    rng: np.random.RandomState,
+) -> float:
+  """Slot-balanced win rate against the random baseline.
+
+  Used to rank the bracket field. Balancing matters here too: seeding on a
+  team-1-only score would rank algorithms partly by how much they benefit
+  from resolving first.
+  """
+  rate, _opponent_rate, _stats = _pairwise_win_rate(
+      key, "random", eval_episodes, rng, {key: agents})
+  return rate
+
+
+def run_baseline_evaluation(
+    trained: Dict[str, Optional[object]],
+    algorithms: Sequence[str],
+    eval_episodes: int,
+    rng: np.random.RandomState,
+) -> Dict[str, Dict[str, Dict[str, float]]]:
+  """Score every algorithm against the fixed reference bots.
+
+  The round-robin only ranks the learners relative to each other, so a
+  uniformly weak field would still produce a champion. These absolute
+  reference points (uniform random, a hand-written heuristic, and plain MCTS)
+  say whether the learned policies are actually strong.
+
+  Args:
+    trained: Mapping from algorithm key to trained agents (or None for bots).
+    algorithms: Algorithm keys to score.
+    eval_episodes: Episodes per algorithm-baseline pairing (split over slots).
+    rng: Random state forwarded to evaluation.
+
+  Returns:
+    ``{algorithm: {baseline: {"win_rate", "loss_rate", "draw_rate"}}}``.
+  """
+  out: Dict[str, Dict[str, Dict[str, float]]] = {}
+  for algo in algorithms:
+    key = normalize_algorithm(algo)
+    row: Dict[str, Dict[str, float]] = {}
+    for opponent in BASELINE_OPPONENTS:
+      if key == opponent:
+        continue
+      win, loss, stats = _pairwise_win_rate(
+          key, opponent, eval_episodes, rng, trained)
+      row[opponent] = {
+          "win_rate": win,
+          "loss_rate": loss,
+          "draw_rate": stats["draw_rate"],
+          "episodes": stats["episodes"],
+      }
+      print(f"  baseline {key} vs {opponent}: {win:.3f}-{loss:.3f}")
+    out[key] = row
+  return out
 
 
 def run_round_robin(
@@ -359,8 +459,9 @@ def run_round_robin(
 ) -> Tuple[List[Dict], Dict[str, Dict[str, float]], List[Dict]]:
   """Run an all-play-all round-robin among all algorithms.
 
-  Each ordered pair ``(a, b)`` is played once with *a* on team 1 and *b* on
-  team 2. Points are awarded: 1 for a win, 0.5 each for a draw, 0 for a loss.
+  Each unordered pair is played in both team orientations so that the team-1
+  slot advantage cancels. Points are awarded: 1 for a win, 0.5 each for a
+  draw, 0 for a loss.
 
   Args:
     trained: Mapping from normalised algorithm key to trained agents (or None
@@ -456,6 +557,9 @@ def run_full_tournament(
         algos, train_episodes, eval_every, eval_episodes, rng, output_dir,
         retrain_algorithms=retrain_algorithms)
 
+  print("=== Baseline reference phase ===")
+  baselines = run_baseline_evaluation(trained, algos, eval_episodes, rng)
+
   round_robin_pairs: List[Dict] = []
   round_robin_matrix: Dict[str, Dict[str, float]] = {}
   round_robin_standings: List[Dict] = []
@@ -471,7 +575,10 @@ def run_full_tournament(
   payload = {
       "train_episodes": train_episodes,
       "algorithms": algos,
+      "num_turns": parse_num_turns(),
+      "eval_episodes": eval_episodes,
       "seeding": seeds,
+      "baselines": baselines,
       "role_selection": {
           algo: {
               "defender_seat": trained[algo].selection[0],
