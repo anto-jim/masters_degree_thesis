@@ -3,7 +3,18 @@
 # Everything runs at num_turns=5 for every algorithm (see thesis 4.1.2).
 set -uo pipefail
 
-cd /home/anto/Projects/masters_degree_thesis
+# Resolve the repository root from this script's own location, so a fresh
+# checkout reproduces the campaign without editing any path in here.
+REPO_ROOT=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+cd "$REPO_ROOT"
+
+# Override PYTHON to use an interpreter outside the campaign venv.
+PYTHON="${PYTHON:-$REPO_ROOT/venv/bin/python}"
+if [ ! -x "$PYTHON" ]; then
+  echo "no usable interpreter at $PYTHON." >&2
+  echo "Create the campaign venv, or set PYTHON=/path/to/python." >&2
+  exit 1
+fi
 
 ROOT="${1:-turn_battle_results}"
 LOG="$ROOT/campaign.log"
@@ -35,12 +46,12 @@ fi
 
 mkdir -p "$ROOT"
 
-export PYTHONPATH="$PWD:$PWD/build/python"
+export PYTHONPATH="$REPO_ROOT:$REPO_ROOT/build/python"
 export PYTHONUNBUFFERED=1
-export LD_LIBRARY_PATH="$PWD/open_spiel/libtorch/libtorch/lib:${LD_LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="$REPO_ROOT/open_spiel/libtorch/libtorch/lib:${LD_LIBRARY_PATH:-}"
 
-echo "=== campaign start $(date -Is) pid=$$ ===" >>"$LOG"
-./venv/bin/python -u open_spiel/python/examples/turn_battle_marl_study.py \
+echo "=== campaign start $(date -Is) pid=$$ root=$REPO_ROOT ===" >>"$LOG"
+"$PYTHON" -u open_spiel/python/examples/turn_battle_marl_study.py \
   --mode=multi_seed \
   --results_root="$ROOT" \
   --seeds=42,43,44 \

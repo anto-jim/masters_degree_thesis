@@ -6,9 +6,11 @@ unit test: an evaluation that quietly runs on the wrong game, or a multi-seed
 campaign that quietly reuses one seed's network, produces plausible-looking
 numbers that are simply wrong.
 
-Run with:
+Run with either runner:
   PYTHONPATH=. ./venv/bin/python \
     open_spiel/python/examples/turn_battle_study/turn_battle_study_test.py
+  PYTHONPATH=. ./venv/bin/python -m pytest \
+    open_spiel/python/examples/turn_battle_study/turn_battle_study_test.py -q
 """
 
 from __future__ import annotations
@@ -36,7 +38,14 @@ FLAGS = flags.FLAGS
 
 
 def _define_missing_flags() -> None:
-  """Define the CLI flags the study modules read, when running standalone."""
+  """Define and parse the CLI flags the study modules read.
+
+  Called at import rather than from ``__main__`` so the suite behaves the same
+  under the absltest runner and under pytest. Only absltest parses the command
+  line, and an absl flag that is defined but unparsed raises on every read, so
+  the flags are marked parsed here too; absltest reparses them for real
+  afterwards.
+  """
   defaults = {
       "game": "turn_battle",
       "game_params": "num_turns=5",
@@ -61,6 +70,11 @@ def _define_missing_flags() -> None:
       flags.DEFINE_string(name, value, "test flag")
   if "allow_dcfr_horizon_mismatch" not in FLAGS:
     flags.DEFINE_boolean("allow_dcfr_horizon_mismatch", False, "test flag")
+  if not FLAGS.is_parsed():
+    FLAGS.mark_as_parsed()
+
+
+_define_missing_flags()
 
 
 class HorizonConsistencyTest(absltest.TestCase):
@@ -360,5 +374,4 @@ class SlotBalanceTest(absltest.TestCase):
 
 
 if __name__ == "__main__":
-  _define_missing_flags()
   absltest.main()

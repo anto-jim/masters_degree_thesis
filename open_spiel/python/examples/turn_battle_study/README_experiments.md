@@ -192,8 +192,32 @@ width matches the matchup's game.
 
 Reproduce the canonical campaign with `run_campaign.sh` in the repository
 root, which clears the output root, detaches the run, and refuses to start if
-another campaign is already writing to the same directory. See
-`turn_battle_results/VERIFICATION_REPORT.md` for the full campaign record.
+another campaign is already writing to the same directory. It resolves the
+repository root from its own location, so it works from any checkout and any
+working directory; set `PYTHON=/path/to/python` to use an interpreter other
+than `venv/bin/python`. See `turn_battle_results/VERIFICATION_REPORT.md` for
+the full campaign record.
+
+## Regression tests
+
+`turn_battle_study_test.py` holds 22 tests pinning the correctness properties
+the published results depend on: horizon consistency, per-seed AlphaZero
+isolation, per-seat transition bookkeeping under a shared learner, the DQN
+checkpoint round trip, global re-seeding, the small-sample statistics, and
+slot balancing. Both runners work:
+
+```bash
+export PYTHONPATH="$PWD:$PWD/build/python"
+export LD_LIBRARY_PATH="$PWD/open_spiel/libtorch/libtorch/lib:${LD_LIBRARY_PATH:-}"
+
+./venv/bin/python open_spiel/python/examples/turn_battle_study/turn_battle_study_test.py
+./venv/bin/python -m pytest \
+  open_spiel/python/examples/turn_battle_study/turn_battle_study_test.py -q
+```
+
+The suite defines and marks its absl flags at import, so it does not depend on
+`absltest.main()` having parsed a command line. `pytest` is not a dependency of
+the campaign venv; install it if you want the second form.
 
 ## Checkpoints
 
