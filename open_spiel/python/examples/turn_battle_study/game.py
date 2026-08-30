@@ -45,12 +45,39 @@ def parse_game_params(params_str: str) -> Dict[str, object]:
 
 
 def parse_num_turns(dcfr_cap: bool = False) -> int:
-  """Return num_turns from game_params, optionally capped by dcfr_max_turns."""
+  """Return num_turns from game_params, optionally capped by dcfr_max_turns.
+
+  A cap below ``num_turns`` means Deep CFR would train on a strictly smaller
+  game than the one every algorithm is evaluated on, which invalidates the
+  head-to-head comparison.  Requesting that requires opting in explicitly via
+  ``--allow_dcfr_horizon_mismatch``.
+
+  Args:
+    dcfr_cap: When True, apply the ``--dcfr_max_turns`` cap.
+
+  Returns:
+    The effective number of turns.
+
+  Raises:
+    ValueError: If a cap below ``num_turns`` is requested without the opt-in
+      flag.
+  """
   params = parse_game_params(FLAGS.game_params)
   num_turns = int(params.get("num_turns", 10))
-  if dcfr_cap:
-    return min(num_turns, FLAGS.dcfr_max_turns)
-  return num_turns
+  if not dcfr_cap:
+    return num_turns
+  cap = int(FLAGS.dcfr_max_turns)
+  if cap <= 0 or cap >= num_turns:
+    return num_turns
+  if not FLAGS.allow_dcfr_horizon_mismatch:
+    raise ValueError(
+        f"--dcfr_max_turns={cap} is below num_turns={num_turns}. Deep CFR "
+        "would then train on a smaller game than the one used for evaluation, "
+        "so its tournament results would not be comparable. Either set "
+        f"num_turns={cap} for every algorithm, drop the cap, or pass "
+        "--allow_dcfr_horizon_mismatch to run a deliberately mismatched "
+        "diagnostic.")
+  return cap
 
 
 def inner_game_string() -> str:

@@ -14,7 +14,10 @@ from open_spiel.python.examples.turn_battle_study.config import (
     EVAL_BOT_ALIASES,
     normalize_algorithm,
 )
-from open_spiel.python.examples.turn_battle_study.game import load_turn_based_game
+from open_spiel.python.examples.turn_battle_study.game import (
+    load_turn_based_game,
+    parse_num_turns,
+)
 from open_spiel.python.pytorch import deep_cfr
 import pyspiel
 
@@ -77,6 +80,16 @@ def _time_step_from_turn_based_state(state: pyspiel.State) -> rl_environment.Tim
   sim = state.simultaneous_game_state()
   n = sim.num_players()
   info_state = [list(sim.information_state_tensor(p)) for p in range(n)]
+  # The RL networks are sized for the canonical num_turns game. A width
+  # mismatch here means the state comes from a differently sized game, which
+  # would make the match meaningless; fail loudly instead of reshaping it.
+  expected_size = 9 + 2 + parse_num_turns() * 4
+  for tensor in info_state:
+    if len(tensor) != expected_size:
+      raise ValueError(
+          f"Info-state width {len(tensor)} does not match the canonical game "
+          f"width {expected_size}. Every agent in a matchup must be trained "
+          "and evaluated on the same num_turns.")
   legal_actions = [list(sim.legal_actions(p)) for p in range(n)]
   step_type = (
       rl_environment.StepType.LAST if state.is_terminal()
@@ -228,8 +241,11 @@ def bots_to_adapters(bots: Sequence[pyspiel.Bot]) -> List[BotRlAdapter]:
   return [BotRlAdapter(bot, i) for i, bot in enumerate(bots)]
 
 
-def trained_bot_game(agents: Optional[Sequence]) -> Optional[pyspiel.Game]:
-  """Return the pyspiel.Game embedded in a DeepCFR bot agent, if any.
+def deep_cfr_solver_game(agents: Optional[Sequence]) -> Optional[pyspiel.Game]:
+  """Return the game a Deep CFR agent's solver was trained on, if any.
+
+  Used to assert that Deep CFR is evaluated on the same game it trained on
+  rather than silently swapping the evaluation game underneath the tournament.
 
   Args:
     agents: A sequence of agent-like objects to inspect.

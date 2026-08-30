@@ -13,7 +13,7 @@ from open_spiel.python.examples.turn_battle_study.bots import (
     BotRlAdapter,
     RlAgentTurnBasedBot,
     create_pyspiel_bot,
-    trained_bot_game,
+    deep_cfr_solver_game,
 )
 from open_spiel.python.examples.turn_battle_study.config import (
     TEAM1_PLAYERS,
@@ -286,6 +286,38 @@ def _turn_based_bot_for_player(
       team2_algo, bot_game, player, rng, for_mcts=True)
 
 
+def _assert_deep_cfr_horizon_matches(
+    bot_game,
+    team1_agents: Optional[Sequence],
+    team2_agents: Optional[Sequence],
+) -> None:
+  """Raise if a Deep CFR solver trained on a different game than *bot_game*.
+
+  Deep CFR's average-strategy network is sized by its training game's
+  information-state tensor, so evaluating it on a game with a different
+  horizon is both a shape error and a comparability error.
+
+  Args:
+    bot_game: The canonical turn-based game used for the matchup.
+    team1_agents: Trained agents for team 1, or None.
+    team2_agents: Trained agents for team 2, or None.
+
+  Raises:
+    ValueError: If a Deep CFR solver's game horizon differs from *bot_game*.
+  """
+  expected = bot_game.information_state_tensor_size()
+  for agents in (team1_agents, team2_agents):
+    solver_game = deep_cfr_solver_game(agents)
+    if solver_game is None:
+      continue
+    actual = solver_game.information_state_tensor_size()
+    if actual != expected:
+      raise ValueError(
+          f"Deep CFR was trained on a game with info-state size {actual} but "
+          f"the tournament game has size {expected}. Train Deep CFR on the "
+          "same num_turns as every other algorithm.")
+
+
 def evaluate_team_matchup(
     team1_algo, team2_algo, num_episodes, rng,
     team1_agents=None, team2_agents=None) -> MatchResult:
@@ -325,10 +357,12 @@ def evaluate_team_matchup(
       result.record(play_episode_rl(env, agents))
     return result
 
-  bot_game = (
-      trained_bot_game(team1_agents) or trained_bot_game(team2_agents)
-      or load_turn_based_game()
-  )
+  # Every matchup is played on the canonical game. Previously a Deep CFR
+  # agent's own (possibly smaller) training game was substituted here, so
+  # matches involving Deep CFR silently ran on a different game than the rest
+  # of the tournament.
+  bot_game = load_turn_based_game()
+  _assert_deep_cfr_horizon_matches(bot_game, team1_agents, team2_agents)
   bots = [
       _turn_based_bot_for_player(
           player, t1, t2, team1_algo, team2_algo,

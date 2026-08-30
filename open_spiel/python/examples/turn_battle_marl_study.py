@@ -51,6 +51,7 @@ from open_spiel.python.examples.turn_battle_study.evaluation import (
 )
 from open_spiel.python.examples.turn_battle_study.game import load_game
 from open_spiel.python.examples.turn_battle_study.report import generate_latex_report
+from open_spiel.python.examples.turn_battle_study.seeding import seed_everything
 from open_spiel.python.examples.turn_battle_study.storage import (
     ensure_output_dir,
     save_comparison_table,
@@ -148,7 +149,14 @@ flags.DEFINE_boolean(
 flags.DEFINE_boolean(
     "dcfr_reinitialize_advantage_networks", False,
     "Reset advantage nets each iteration (canonical Deep CFR; off for short budgets).")
-flags.DEFINE_integer("dcfr_max_turns", 10, "Deep CFR max turns (match game_params).")
+flags.DEFINE_integer(
+    "dcfr_max_turns", 0,
+    "Horizon cap for the Deep CFR training game; 0 means use num_turns. A cap "
+    "below num_turns needs --allow_dcfr_horizon_mismatch.")
+flags.DEFINE_boolean(
+    "allow_dcfr_horizon_mismatch", False,
+    "Permit Deep CFR to train on a shorter horizon than the evaluation game. "
+    "Only for diagnostics: it makes tournament results incomparable.")
 
 # --- RL mixed-training flags ---
 flags.DEFINE_float(
@@ -189,7 +197,8 @@ def run_compare(rng: np.random.RandomState) -> None:
     row = {"algorithm": algo}
     if algo in TRAINABLE_ALGOS:
       agents, log, _artifact = train_algorithm(
-          algo, FLAGS.train_episodes, FLAGS.eval_every, FLAGS.eval_episodes, rng)
+          algo, FLAGS.train_episodes, FLAGS.eval_every, FLAGS.eval_episodes,
+          rng, output_dir=output_dir)
       save_training_log(log, output_dir)
       matchup = evaluate_team_matchup(
           algo, "random", FLAGS.eval_episodes, rng, team1_agents=agents)
@@ -217,7 +226,8 @@ def run_train(rng: np.random.RandomState) -> None:
   output_dir = ensure_output_dir(FLAGS.output_dir)
   algo = validate_algorithm(FLAGS.algorithm, for_training=True)
   agents, log, _artifact = train_algorithm(
-      algo, FLAGS.train_episodes, FLAGS.eval_every, FLAGS.eval_episodes, rng)
+      algo, FLAGS.train_episodes, FLAGS.eval_every, FLAGS.eval_episodes, rng,
+      output_dir=output_dir)
   save_training_log(log, output_dir)
   print(evaluate_team_matchup(
       algo, "random", FLAGS.eval_episodes, rng, team1_agents=agents).summary())
@@ -290,6 +300,11 @@ def run_multi_seed(_rng: np.random.RandomState) -> None:
   for seed in seeds:
     output_dir = os.path.join(root, f"seed_{seed}")
     ensure_output_dir(output_dir)
+    # FLAGS.seed is what the Deep CFR solver and the C++ AlphaZero subprocess
+    # read, so it has to track the loop variable; seed_everything covers the
+    # global generators used for network initialisation.
+    FLAGS.seed = seed
+    seed_everything(seed)
     save_experiment_config(output_dir, seed=seed)
     print(f"\n========== Seed {seed} -> {output_dir} ==========")
     run_full_tournament(
@@ -338,6 +353,7 @@ def main(argv):
   print(f"Game: {game.get_type().short_name}, players={game.num_players()}")
   print(f"Train episodes per algorithm: {FLAGS.train_episodes}")
   print(f"Training device: {device_label(resolve_device(FLAGS.device))}")
+  seed_everything(FLAGS.seed)
   rng = np.random.RandomState(FLAGS.seed)
   start = time.time()
   modes = {
