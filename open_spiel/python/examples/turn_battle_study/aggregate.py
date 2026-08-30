@@ -9,25 +9,118 @@ from typing import Dict, List, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import stats
 
 from .report import _latex_preamble, _plot_seeding_bar, _save_figure
 
 
-def mean_ci(values: Sequence[float], z: float = 1.96) -> Dict[str, float]:
-  """Normal-approximation CI for the mean of per-seed summary statistics."""
-  if not values:
-    return {"mean": 0.0, "ci_low": 0.0, "ci_high": 0.0, "std": 0.0}
-  n = len(values)
-  mean = float(np.mean(values))
+_BOOTSTRAP_RESAMPLES = 10000
+
+
+def mean_ci(
+    values: Sequence[float],
+    confidence: float = 0.95,
+    clip: bool = True,
+) -> Dict[str, object]:
+  """Summarise per-seed values with a small-sample confidence interval.
+
+  With only a handful of seeds the normal approximation understates the
+  interval, so the Student-t critical value for ``n - 1`` degrees of freedom
+  is used instead. A percentile bootstrap interval is reported alongside it,
+  and the raw per-seed values are carried through so a reader can judge the
+  spread directly rather than trusting an interval estimated from very few
+  points.
+
+  Args:
+    values: One summary statistic per seed.
+    confidence: Two-sided confidence level.
+    clip: Clip the interval to [0, 1] (appropriate for rates, not for points).
+
+  Returns:
+    A dict with the mean, standard deviation, t-interval, bootstrap interval,
+    the per-seed values, and the number of seeds.
+  """
+  vals = [float(v) for v in values]
+  if not vals:
+    return {"mean": 0.0, "ci_low": 0.0, "ci_high": 0.0, "std": 0.0,
+            "n_seeds": 0, "values": [], "ci_method": "none"}
+  n = len(vals)
+  mean = float(np.mean(vals))
   if n < 2:
-    return {"mean": mean, "ci_low": mean, "ci_high": mean, "std": 0.0}
-  std = float(np.std(values, ddof=1))
-  margin = z * std / math.sqrt(n)
+    return {"mean": mean, "ci_low": mean, "ci_high": mean, "std": 0.0,
+            "n_seeds": n, "values": vals, "ci_method": "single-seed"}
+
+  std = float(np.std(vals, ddof=1))
+  t_crit = float(stats.t.ppf(0.5 + confidence / 2.0, df=n - 1))
+  margin = t_crit * std / math.sqrt(n)
+  low, high = mean - margin, mean + margin
+
+  rng = np.random.default_rng(12345)
+  draws = rng.choice(vals, size=(_BOOTSTRAP_RESAMPLES, n), replace=True)
+  boot_means = draws.mean(axis=1)
+  alpha = (1.0 - confidence) / 2.0
+  boot_low = float(np.quantile(boot_means, alpha))
+  boot_high = float(np.quantile(boot_means, 1.0 - alpha))
+
+  if clip:
+    low, high = max(0.0, low), min(1.0, high)
+    boot_low, boot_high = max(0.0, boot_low), min(1.0, boot_high)
+
   return {
       "mean": mean,
-      "ci_low": max(0.0, mean - margin),
-      "ci_high": min(1.0, mean + margin),
       "std": std,
+      "sem": std / math.sqrt(n),
+      "ci_low": low,
+      "ci_high": high,
+      "ci_method": f"student-t (df={n - 1})",
+      "t_critical": t_crit,
+      "bootstrap_ci_low": boot_low,
+      "bootstrap_ci_high": boot_high,
+      "n_seeds": n,
+      "values": vals,
+      "min": float(np.min(vals)),
+      "max": float(np.max(vals)),
+  }
+
+
+def paired_comparison(
+    values_a: Sequence[float],
+    values_b: Sequence[float],
+) -> Dict[str, object]:
+  """Compare two algorithms across the seeds they were both run on.
+
+  Seeds are a paired design: both algorithms saw the same seed, so the
+  per-seed difference removes seed-level variance. With a handful of seeds no
+  test has real power, so the sign of every per-seed difference is reported
+  and the p-value is presented as descriptive rather than confirmatory.
+
+  Args:
+    values_a: Per-seed statistic for algorithm A.
+    values_b: Per-seed statistic for algorithm B, aligned with *values_a*.
+
+  Returns:
+    A dict with the mean difference, its interval, how many seeds favour A,
+    and a paired t-test p-value (or None when it cannot be computed).
+  """
+  a = np.asarray(values_a, dtype=float)
+  b = np.asarray(values_b, dtype=float)
+  if a.size == 0 or a.size != b.size:
+    return {"n_seeds": 0, "mean_difference": None, "p_value": None,
+            "seeds_favouring_a": 0}
+  diff = a - b
+  summary = mean_ci(diff.tolist(), clip=False)
+  p_value = None
+  if a.size >= 2 and float(np.std(diff, ddof=1)) > 0:
+    p_value = float(stats.ttest_rel(a, b).pvalue)
+  return {
+      "n_seeds": int(a.size),
+      "mean_difference": summary["mean"],
+      "ci_low": summary["ci_low"],
+      "ci_high": summary["ci_high"],
+      "seeds_favouring_a": int(np.sum(diff > 0)),
+      "seeds_favouring_b": int(np.sum(diff < 0)),
+      "p_value": p_value,
+      "per_seed_difference": diff.tolist(),
   }
 
 
@@ -65,14 +158,25 @@ def aggregate_multi_seed_results(
   rr_avg_win: Dict[str, List[float]] = {}
   pairwise: Dict[str, Dict[str, List[float]]] = {}
 
+  baseline_values: Dict[str, Dict[str, List[float]]] = {}
+
   train_episodes = None
+  num_turns = None
+  eval_episodes = None
   for seed in seeds:
     result = _load_seed_result(results_root, seed)
     per_seed.append({"seed": seed, "champion": result.get("champion")})
     if train_episodes is None:
       train_episodes = result.get("train_episodes")
+      num_turns = result.get("num_turns")
+      eval_episodes = result.get("eval_episodes")
     if not algos:
       algos = list(result.get("algorithms", []))
+
+    for algo, row in result.get("baselines", {}).items():
+      for opponent, entry in row.items():
+        baseline_values.setdefault(algo, {}).setdefault(
+            opponent, []).append(float(entry["win_rate"]))
 
     champion = result.get("champion")
     if champion:
@@ -93,20 +197,37 @@ def aggregate_multi_seed_results(
         if a != b and a in matrix and b in matrix[a]:
           pairwise[a].setdefault(b, []).append(float(matrix[a][b]))
 
-  seeding_summary = {}
-  for algo, vals in seeding_values.items():
-    stats = mean_ci(vals)
-    seeding_summary[algo] = {"n_seeds": len(vals), **stats}
+  seeding_summary = {algo: mean_ci(vals) for algo, vals in
+                     seeding_values.items()}
+
+  baseline_summary: Dict[str, Dict[str, Dict[str, object]]] = {}
+  for algo, row in baseline_values.items():
+    baseline_summary[algo] = {
+        opponent: mean_ci(vals) for opponent, vals in row.items()}
 
   rr_summary = {}
   for algo in algos:
     pts = rr_points.get(algo, [])
     wins = rr_avg_win.get(algo, [])
     rr_summary[algo] = {
+        "round_robin_points": mean_ci(pts, clip=False),
+        "pairwise_win_rate": mean_ci(wins),
+        # Kept for backwards compatibility with existing report templates.
         "mean_round_robin_points": float(np.mean(pts)) if pts else 0.0,
         "mean_pairwise_win_rate": float(np.mean(wins)) if wins else 0.0,
-        "std_pairwise_win_rate": float(np.std(wins)) if len(wins) > 1 else 0.0,
     }
+
+  # Paired seed-level comparisons between every ordered pair of algorithms,
+  # on the seeding score (the one statistic every algorithm has per seed).
+  comparisons: Dict[str, Dict[str, object]] = {}
+  for a in algos:
+    for b in algos:
+      if a >= b or a not in seeding_values or b not in seeding_values:
+        continue
+      if len(seeding_values[a]) != len(seeding_values[b]):
+        continue
+      comparisons[f"{a}_vs_{b}"] = paired_comparison(
+          seeding_values[a], seeding_values[b])
 
   pairwise_summary: Dict[str, Dict[str, Dict[str, float]]] = {}
   for a in algos:
@@ -121,6 +242,8 @@ def aggregate_multi_seed_results(
 
   payload = {
       "train_episodes": train_episodes,
+      "num_turns": num_turns,
+      "eval_episodes": eval_episodes,
       "n_seeds": len(seeds),
       "seeds": list(seeds),
       "algorithms": algos,
@@ -129,8 +252,10 @@ def aggregate_multi_seed_results(
           a: champion_counts.get(a, 0) / max(len(seeds), 1) for a in algos
       },
       "seeding": seeding_summary,
+      "baselines": baseline_summary,
       "round_robin": rr_summary,
       "pairwise": pairwise_summary,
+      "paired_comparisons": comparisons,
       "per_seed": per_seed,
   }
 
