@@ -61,6 +61,9 @@ struct AlphaZeroConfig {
   int evaluators;
   int eval_levels;
   int max_steps;
+  // Base seed for actor/evaluator RNGs. Negative means "seed from the clock",
+  // which reproduces the historical non-reproducible behaviour.
+  int seed;
 
   json::Object ToJson() const {
     return json::Object({
@@ -94,6 +97,7 @@ struct AlphaZeroConfig {
         {"evaluators", evaluators},
         {"eval_levels", eval_levels},
         {"max_steps", max_steps},
+        {"seed", seed},
     });
   }
 
@@ -128,6 +132,8 @@ struct AlphaZeroConfig {
     evaluators = config_json.at("evaluators").GetInt();
     eval_levels = config_json.at("eval_levels").GetInt();
     max_steps = config_json.at("max_steps").GetInt();
+    // Older run directories predate the seed field.
+    seed = config_json.count("seed") ? config_json.at("seed").GetInt() : -1;
   }
 };
 

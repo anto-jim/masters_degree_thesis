@@ -166,15 +166,24 @@ Trajectory PlayGame(Logger* logger, int game_num, const open_spiel::Game& game,
   return trajectory;
 }
 
+// Derives a stream-specific seed from the run's base seed. A negative base
+// seed keeps the historical clock-seeded (non-reproducible) behaviour.
+int DerivedSeed(int base_seed, int stream) {
+  if (base_seed < 0) {
+    return static_cast<int>(absl::ToUnixNanos(absl::Now()) & 0x7fffffff);
+  }
+  return base_seed * 7919 + stream;
+}
+
 std::unique_ptr<MCTSBot> InitAZBot(const AlphaZeroConfig& config,
                                    const open_spiel::Game& game,
                                    std::shared_ptr<Evaluator> evaluator,
-                                   bool evaluation) {
+                                   bool evaluation, int seed) {
   return std::make_unique<MCTSBot>(
       game, std::move(evaluator), config.uct_c, config.max_simulations,
       /*max_memory_mb=*/10,
       /*solve=*/false,
-      /*seed=*/0,
+      /*seed=*/seed,
       /*verbose=*/false, ChildSelectionPolicy::PUCT,
       evaluation ? 0 : config.policy_alpha,
       evaluation ? 0 : config.policy_epsilon,
@@ -191,12 +200,13 @@ void actor(const open_spiel::Game& game, const AlphaZeroConfig& config, int num,
   } else {
     logger.reset(new NoopLogger());
   }
-  std::mt19937 rng(absl::ToUnixNanos(absl::Now()));
+  std::mt19937 rng(DerivedSeed(config.seed, 1000 + num));
   absl::uniform_real_distribution<double> dist(0.0, 1.0);
   std::vector<std::unique_ptr<MCTSBot>> bots;
   bots.reserve(2);
   for (int player = 0; player < 2; player++) {
-    bots.push_back(InitAZBot(config, game, vp_eval, false));
+    bots.push_back(InitAZBot(config, game, vp_eval, false,
+                             DerivedSeed(config.seed, 2000 + num * 2 + player)));
   }
   for (int game_num = 1; !stop->StopRequested(); ++game_num) {
     double cutoff =
@@ -263,8 +273,9 @@ void evaluator(const open_spiel::Game& game, const AlphaZeroConfig& config,
                int num, EvalResults* results,
                std::shared_ptr<VPNetEvaluator> vp_eval, StopToken* stop) {
   FileLogger logger(config.path, absl::StrCat("evaluator-", num));
-  std::mt19937 rng;
-  auto rand_evaluator = std::make_shared<RandomRolloutEvaluator>(1, num);
+  std::mt19937 rng(DerivedSeed(config.seed, 3000 + num));
+  auto rand_evaluator = std::make_shared<RandomRolloutEvaluator>(
+      1, DerivedSeed(config.seed, 4000 + num));
 
   for (int game_num = 1; !stop->StopRequested(); ++game_num) {
     auto [difficulty, first] = results->Next();
@@ -273,12 +284,13 @@ void evaluator(const open_spiel::Game& game, const AlphaZeroConfig& config,
         config.max_simulations * std::pow(10, difficulty / 2.0);
     std::vector<std::unique_ptr<MCTSBot>> bots;
     bots.reserve(2);
-    bots.push_back(InitAZBot(config, game, vp_eval, true));
+    bots.push_back(InitAZBot(config, game, vp_eval, true,
+                             DerivedSeed(config.seed, 5000 + num)));
     bots.push_back(std::make_unique<MCTSBot>(
         game, rand_evaluator, config.uct_c, rand_max_simulations,
         /*max_memory_mb=*/1000,
         /*solve=*/true,
-        /*seed=*/num * 1000 + game_num,
+        /*seed=*/DerivedSeed(config.seed, 6000 + num * 1000 + game_num),
         /*verbose=*/false, ChildSelectionPolicy::UCT,
         /*dirichlet_alpha=*/0,
         /*dirichlet_epsilon=*/0,
@@ -310,7 +322,7 @@ void learner(const open_spiel::Game& game, const AlphaZeroConfig& config,
   FileLogger logger(config.path, "learner", "a");
   DataLoggerJsonLines data_logger(
       config.path, "learner", true, "a", start_info.start_time);
-  std::mt19937 rng;
+  std::mt19937 rng(DerivedSeed(config.seed, 7000));
 
   int device_id = 0;  // Do not change, the first device is the learner.
   logger.Print("Running the learner on device %d: %s", device_id,

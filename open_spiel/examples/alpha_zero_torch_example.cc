@@ -82,6 +82,9 @@ ABSL_FLAG(int, eval_levels, 7,
 ABSL_FLAG(int, max_steps, 0, "How many learn steps to run.");
 ABSL_FLAG(int, evaluation_window, 100,
           "Number of games to average results over.");
+ABSL_FLAG(int, seed, -1,
+          "Base seed for actor/evaluator RNGs and their MCTS bots. Negative "
+          "seeds the RNGs from the clock (not reproducible).");
 
 open_spiel::StopToken stop_token;
 
@@ -160,6 +163,7 @@ int main(int argc, char** argv) {
     config.evaluators = absl::GetFlag(FLAGS_evaluators);
     config.eval_levels = absl::GetFlag(FLAGS_eval_levels);
     config.max_steps = absl::GetFlag(FLAGS_max_steps);
+    config.seed = absl::GetFlag(FLAGS_seed);
   }
 
   return !AlphaZero(config, &stop_token, resuming);
