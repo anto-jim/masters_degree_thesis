@@ -99,7 +99,7 @@ def _training_device() -> str:
   return str(resolve_device(FLAGS.device))
 
 
-def train_alphazero(episodes, eval_every, eval_eps, rng):
+def train_alphazero(episodes, eval_every, eval_eps, rng, output_dir=None):
   """Train an AlphaZero agent via the C++ LibTorch backend.
 
   Args:
@@ -107,6 +107,8 @@ def train_alphazero(episodes, eval_every, eval_eps, rng):
     eval_every: Evaluate win rate every this many episodes.
     eval_eps: Number of episodes per evaluation rollout.
     rng: Random state for evaluation sampling.
+    output_dir: Directory owning this run's C++ working directory. Must be the
+      per-seed directory in multi-seed runs so that seeds do not share state.
 
   Returns:
     A (agents, log, trainer) tuple where agents is the list of bot adapters,
@@ -125,7 +127,7 @@ def train_alphazero(episodes, eval_every, eval_eps, rng):
     win, loss = _fixed_role_win_rate("alphazero", agents, eval_eps, rng)
     _log_checkpoint(log, step, win, loss, "alphazero")
 
-  trainer.train(episodes, eval_every, _eval_at_step)
+  trainer.train(episodes, eval_every, _eval_at_step, output_dir=output_dir)
   return bots_to_adapters(trainer.make_bots()), log, trainer
 
 
@@ -251,7 +253,7 @@ def _train_rl(algo, episodes, eval_every, eval_eps, rng):
 
 
 def train_algorithm(
-    algo, episodes, eval_every, eval_eps, rng
+    algo, episodes, eval_every, eval_eps, rng, output_dir=None
 ) -> Tuple[Any, TrainingLog, Optional[Any]]:
   """Dispatch training to the correct backend for the given algorithm.
 
@@ -261,6 +263,8 @@ def train_algorithm(
     eval_every: Evaluate win rate every this many steps.
     eval_eps: Number of episodes per evaluation rollout.
     rng: Random state for evaluation sampling.
+    output_dir: Run-specific output directory, used by AlphaZero for its C++
+      working directory.
 
   Returns:
     A (agents, log, artifact) tuple.  artifact is an AlphaZeroCpp or
@@ -269,7 +273,7 @@ def train_algorithm(
   """
   key = validate_algorithm(algo, for_training=True)
   if key == "alphazero":
-    return train_alphazero(episodes, eval_every, eval_eps, rng)
+    return train_alphazero(episodes, eval_every, eval_eps, rng, output_dir)
   if key == "deep_cfr":
     return train_deep_cfr(episodes, eval_every, eval_eps, rng)
   if key in {"nfsp", "qpg"}:

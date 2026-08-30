@@ -293,8 +293,20 @@ class AlphaZeroCpp:
   def run_dir(self) -> Optional[pathlib.Path]:
     return self._run_dir
 
-  def _ensure_run_dir(self, base_dir: str) -> pathlib.Path:
+  def _ensure_run_dir(self, base_dir: str, fresh: bool = False) -> pathlib.Path:
+    """Return the C++ run directory under *base_dir*, optionally emptied.
+
+    Args:
+      base_dir: Directory that will contain the ``az_cpp_run`` subdirectory.
+        This must be the run's own output directory: sharing one run directory
+        across seeds lets a previous seed's logs and checkpoints leak into the
+        next one.
+      fresh: When True, delete any existing run directory first so that
+        ``learner.jsonl`` and the checkpoints describe only this run.
+    """
     run_dir = pathlib.Path(base_dir) / _RUN_DIR_NAME
+    if fresh and run_dir.exists():
+      shutil.rmtree(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
     self._run_dir = run_dir
     return run_dir
@@ -325,10 +337,17 @@ class AlphaZeroCpp:
         f"--evaluation_window={FLAGS.az_cpp_evaluation_window}",
         f"--devices={device}",
         f"--max_steps={max_steps}",
+        f"--seed={FLAGS.seed}",
     ]
     return cmd
 
   def _latest_learner_step(self, run_dir: pathlib.Path) -> int:
+    """Return the step of the most recent ``learner.jsonl`` record.
+
+    The last record is used rather than the maximum: the maximum of a file
+    that still holds a previous run's lines would start high and never
+    advance, which silently suppresses every checkpoint reload.
+    """
     learner_path = run_dir / "learner.jsonl"
     if not learner_path.is_file():
       return 0
@@ -338,9 +357,9 @@ class AlphaZeroCpp:
         continue
       try:
         record = json.loads(line)
-        last_step = max(last_step, int(record.get("step", 0)))
       except json.JSONDecodeError:
         continue
+      last_step = int(record.get("step", last_step))
     return last_step
 
   def train(
@@ -348,8 +367,20 @@ class AlphaZeroCpp:
       episodes: int,
       eval_every: int,
       eval_callback,
+      output_dir: Optional[str] = None,
   ) -> None:
-    run_dir = self._ensure_run_dir(FLAGS.output_dir)
+    """Train via the C++ subprocess, evaluating periodically.
+
+    Args:
+      episodes: Number of learner steps to run (``--max_steps``).
+      eval_every: Minimum learner-step gap between evaluation callbacks.
+      eval_callback: Called as ``eval_callback(step)`` after each reload.
+      output_dir: Directory that owns this run's ``az_cpp_run`` subdirectory.
+        Defaults to ``FLAGS.output_dir``; multi-seed callers must pass their
+        own per-seed directory.
+    """
+    base_dir = output_dir or FLAGS.output_dir
+    run_dir = self._ensure_run_dir(base_dir, fresh=True)
     cmd = self._build_train_command(run_dir, episodes)
     print(f"  launching C++ AlphaZero: {' '.join(cmd)}")
 
@@ -371,9 +402,12 @@ class AlphaZeroCpp:
         output = log_path.read_text(encoding="utf-8") if log_path.is_file() else ""
         raise RuntimeError(
             f"C++ AlphaZero exited with code {proc.returncode}.\n{output}")
+      # Always reload after the run finishes: the in-memory evaluator would
+      # otherwise keep whatever weights the last periodic reload happened to
+      # see, which need not be the trained network.
+      self.load_checkpoint(run_dir)
       final_step = self._latest_learner_step(run_dir)
-      if final_step > last_eval_step:
-        self.load_checkpoint(run_dir)
+      if final_step > last_eval_step or last_eval_step == 0:
         eval_callback(final_step)
     finally:
       if proc.poll() is None:
